@@ -1,0 +1,46 @@
+schema: spec-driven
+
+context: |
+  DeckLive: API em Rust (axum + SQLite) que escolhe e descreve fotos, e um player web em TypeScript puro (sem framework) que as exibe em TVs e celulares. Cliente futuro: DeckLock (tela de bloqueio em Rust/GTK4, github.com/yan-vidal/DeckLock).
+  Escreva os artefatos em português do Brasil. Ficam em inglês os cabeçalhos do OpenSpec, as palavras normativas (SHALL, MUST), os marcadores de cenário (WHEN, THEN, AND), identificadores, rotas e comandos. Comentários de código em português.
+  Custo e desempenho vêm primeiro: os bytes das fotos nunca passam pela API (o navegador baixa direto de cdn.yanlucas.com, um bucket R2 com domínio próprio); as respostas públicas da API são pequenas e cacheáveis na Cloudflare.
+  Não há contas de usuário: as preferências do player ficam só no navegador.
+  O layout do player é a referência visual que o DeckLock vai copiar; medidas, cores e tempos ficam em variáveis CSS fáceis de portar para o CSS do GTK.
+  Fonte das fotos hoje: API pública https://api.yanlucas.com (Node + MongoDB), que não tem rota de busca por id.
+
+rules:
+  tasks:
+    - Cada tarefa termina com um jeito objetivo de verificar (teste, comando ou checagem no navegador)
+    - Regras de negócio da API em Rust nascem com teste antes da implementação (TDD)
+
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

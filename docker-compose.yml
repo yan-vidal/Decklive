@@ -1,0 +1,16 @@
+# DeckLive: API + player web. O token fica no .env (veja .env.example).
+services:
+  decklive:
+    build: .
+    image: decklive:latest
+    container_name: decklive
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # só no loopback: o nginx do host faz o HTTPS e repassa.
+      # DECKLIVE_PORT vem do .env (no servidor de casa a 8083 é do CrowdSec).
+      - "127.0.0.1:${DECKLIVE_PORT:-8083}:8080"
+    volumes:
+      - ./data:/app/data
+    security_opt:
+      - no-new-privileges:true

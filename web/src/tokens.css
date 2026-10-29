@@ -1,0 +1,94 @@
+/*
+ * Tokens visuais do DeckLive (design D10), para o DeckLock copiar depois.
+ * Origem: themes/default/style.css do DeckLock (origin/main 58f54ec).
+ * Medidas são px da tela de referência 1280×800, sem unidade; o CSS usa
+ * calc(<referência> * var(--dl-u)). Navegadores de TV antigos não têm min()/clamp().
+ */
+:root {
+  /* Escala: o JS define max(0.6, min(lado longo/1280, lado curto/800)) px; amplia e reduz. */
+  --dl-u: 1px;
+  /* Escala dos botões e do painel: max(1, --dl-u), para o toque no celular. */
+  --dl-ui: 1px;
+
+  /* Cores (@define-color) */
+  --dl-accent: #7aa2f7;
+  --dl-foreground: #e6e6e6;
+  --dl-background: #000000;
+  --dl-settings-bg: #16181d;
+  --dl-settings-surface: #20232b;
+  --dl-settings-raised: #2c303b;
+  --dl-settings-text: #e6e6e6;
+  --dl-settings-muted: #a0a7b4;
+
+  /* Véu sobre a foto, dentro de cada camada (.veil) */
+  --dl-veil: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.15) 40%, rgba(0, 0, 0, 0.65));
+
+  /* #clock: white, 96px, 300, text-shadow 0 2px 12px rgba(0,0,0,0.8) */
+  --dl-clock-color: #ffffff;
+  --dl-clock-size: 96;
+  --dl-clock-weight: 300;
+  --dl-clock-shadow-y: 2;
+  --dl-clock-shadow-blur: 12;
+  --dl-clock-shadow-color: rgba(0, 0, 0, 0.8);
+
+  /* #date: white, 22px, text-shadow 0 2px 10px rgba(0,0,0,0.8) */
+  --dl-date-color: #ffffff;
+  --dl-date-size: 22;
+  --dl-date-shadow-y: 2;
+  --dl-date-shadow-blur: 10;
+  --dl-date-shadow-color: rgba(0, 0, 0, 0.8);
+
+  /* #status.warning (14px, sombra 0 2px 8px rgba(0,0,0,0.9)): aviso discreto sem rede */
+  --dl-notice-color: #ffe3a3;
+  --dl-notice-size: 14;
+  --dl-notice-shadow-color: rgba(0, 0, 0, 0.9);
+
+  /* Local, título e resumo da foto (design D6): canto inferior esquerdo, escalam com --dl-ui;
+     sombra igual à da data */
+  --dl-info-title-size: 24;
+  --dl-info-title-weight: 600;
+  --dl-info-text-size: 16;
+  --dl-info-place-size: 15;
+  --dl-info-width: 560;
+  --dl-info-margin: 32;
+  --dl-info-gap: 6;
+  /* Linhas do resumo e do título antes do "…" */
+  --dl-info-lines: 4;
+  --dl-info-title-lines: 2;
+  --dl-info-color: #ffffff;
+  --dl-info-muted: rgba(255, 255, 255, 0.85);
+
+  /* #help-panel: alpha(@settings_bg, 0.94), borda alpha(@accent, 0.50), raio 18px */
+  --dl-panel-bg: rgba(22, 24, 29, 0.94);
+  --dl-panel-border: rgba(122, 162, 247, 0.5);
+  --dl-panel-radius: 18;
+  --dl-panel-width: 400;
+  --dl-panel-title-size: 22;
+  --dl-panel-label-size: 14;
+
+  /* #help-button / #power button: alpha(@settings_surface, 0.70), borda alpha(@accent, 0.50),
+     raio 18px, hover alpha(@accent, 0.65) */
+  --dl-button-bg: rgba(32, 35, 43, 0.7);
+  --dl-button-border: rgba(122, 162, 247, 0.5);
+  --dl-button-hover: rgba(122, 162, 247, 0.65);
+  --dl-button-radius: 18;
+  --dl-button-size: 40;
+  --dl-option-size: 16;
+  /* #submit:hover: alpha(@accent, 0.40) marca a opção escolhida */
+  --dl-option-selected: rgba(122, 162, 247, 0.4);
+  /* Anel de foco do controle remoto */
+  --dl-focus-ring: 3;
+
+  /* Tempos: crossfade do GtkStack (600 ms) e transições curtas dos botões (150/200 ms) */
+  --dl-crossfade: 600ms;
+  --dl-fast: 150ms;
+  --dl-fade: 200ms;
+}
+
+/* Janela baixa (celular deitado): resumo em 2 linhas e título em 1, para não chegar ao relógio */
+@media (max-height: 560px) {
+  :root {
+    --dl-info-lines: 2;
+    --dl-info-title-lines: 1;
+  }
+}

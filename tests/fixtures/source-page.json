@@ -1,0 +1,855 @@
+{
+  "images": [
+    {
+      "_id": "66d312a4124fa13304b01ea7",
+      "tags": [
+        "Sky",
+        "Landscape",
+        "Sand",
+        "Beach",
+        "Nature"
+      ],
+      "images": [
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1725108890838-IMG_8665-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1725108890838-IMG_8665-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1725108890838-IMG_8665.jpeg",
+          "versionName": "V1",
+          "colorPalette": [
+            {
+              "red": 199,
+              "green": 148,
+              "blue": 66,
+              "score": 0.36463514,
+              "pixelFraction": 0.17106383,
+              "_id": "66d312a4124fa13304b01ea9"
+            },
+            {
+              "red": 235,
+              "green": 217,
+              "blue": 188,
+              "score": 0.15869954,
+              "pixelFraction": 0.08432624,
+              "_id": "66d312a4124fa13304b01eaa"
+            },
+            {
+              "red": 219,
+              "green": 207,
+              "blue": 184,
+              "score": 0.123714626,
+              "pixelFraction": 0.1335461,
+              "_id": "66d312a4124fa13304b01eab"
+            },
+            {
+              "red": 224,
+              "green": 171,
+              "blue": 93,
+              "score": 0.07944659,
+              "pixelFraction": 0.01815603,
+              "_id": "66d312a4124fa13304b01eac"
+            },
+            {
+              "red": 250,
+              "green": 217,
+              "blue": 165,
+              "score": 0.061163172,
+              "pixelFraction": 0.015106383,
+              "_id": "66d312a4124fa13304b01ead"
+            }
+          ],
+          "_id": "66d312a4124fa13304b01ea8"
+        }
+      ],
+      "original": {
+        "thumbnailUrl": "https://cdn.yanlucas.com/1725108894849-IMG_8666-thumbnail.jpeg",
+        "optimizedUrl": "https://cdn.yanlucas.com/1725108894849-IMG_8666-optimized.jpeg",
+        "fullSizeUrl": "https://cdn.yanlucas.com/1725108894849-IMG_8666.jpeg",
+        "versionName": "Original",
+        "colorPalette": [
+          {
+            "red": 188,
+            "green": 185,
+            "blue": 178,
+            "score": 0.32859355,
+            "pixelFraction": 0.13695036,
+            "_id": "66d312a4124fa13304b01eaf"
+          },
+          {
+            "red": 140,
+            "green": 121,
+            "blue": 99,
+            "score": 0.27847958,
+            "pixelFraction": 0.34056738,
+            "_id": "66d312a4124fa13304b01eb0"
+          },
+          {
+            "red": 171,
+            "green": 151,
+            "blue": 128,
+            "score": 0.151199,
+            "pixelFraction": 0.06297872,
+            "_id": "66d312a4124fa13304b01eb1"
+          },
+          {
+            "red": 204,
+            "green": 191,
+            "blue": 171,
+            "score": 0.14547987,
+            "pixelFraction": 0.018510638,
+            "_id": "66d312a4124fa13304b01eb2"
+          },
+          {
+            "red": 164,
+            "green": 167,
+            "blue": 168,
+            "score": 0.09573897,
+            "pixelFraction": 0.24439716,
+            "_id": "66d312a4124fa13304b01eb3"
+          }
+        ],
+        "_id": "66d312a4124fa13304b01eae"
+      },
+      "metadata": {
+        "camera": "Nokia Lumia 640",
+        "lens": "Wide",
+        "iso": "64",
+        "shutterSpeed": "1/5600",
+        "flash": "Off",
+        "whiteBalance": "Auto",
+        "aperture": "2.20",
+        "takenAt": "2015-10-16T15:35:41.000Z",
+        "fullSizeWidth": 2944,
+        "fullSizeHeight": 1839,
+        "optimizedWidth": 981,
+        "optimizedHeight": 613,
+        "thumbnailWidth": 196,
+        "thumbnailHeight": 123
+      },
+      "createdAt": "2024-08-31T12:55:00.145Z",
+      "updatedAt": "2024-10-14T05:10:52.713Z",
+      "__v": 4,
+      "city": "Jericoacoara",
+      "country": "Brazil",
+      "state": "Ceará",
+      "description": "Sunset Dune: This natural formation is part of the dynamic dune system along the"
+    },
+    {
+      "_id": "66d31aac124fa13304b01fa6",
+      "tags": [
+        "Cloud",
+        "Sky",
+        "Landscape",
+        "Sand",
+        "People",
+        "Nature",
+        "Beach"
+      ],
+      "images": [
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1725110947174-WP_20151019_10_42_26_Pro-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1725110947174-WP_20151019_10_42_26_Pro-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1725110947174-WP_20151019_10_42_26_Pro.jpeg",
+          "versionName": "V1",
+          "colorPalette": [
+            {
+              "red": 250,
+              "green": 195,
+              "blue": 116,
+              "score": 0.47440106,
+              "pixelFraction": 0.39304966,
+              "_id": "66d31aac124fa13304b01fa8"
+            },
+            {
+              "red": 244,
+              "green": 230,
+              "blue": 207,
+              "score": 0.34570742,
+              "pixelFraction": 0.20460993,
+              "_id": "66d31aac124fa13304b01fa9"
+            },
+            {
+              "red": 160,
+              "green": 204,
+              "blue": 215,
+              "score": 0.005487768,
+              "pixelFraction": 0.022411348,
+              "_id": "66d31aac124fa13304b01faa"
+            },
+            {
+              "red": 239,
+              "green": 233,
+              "blue": 222,
+              "score": 0.06832781,
+              "pixelFraction": 0.11950354,
+              "_id": "66d31aac124fa13304b01fab"
+            },
+            {
+              "red": 246,
+              "green": 199,
+              "blue": 118,
+              "score": 0.029542813,
+              "pixelFraction": 0.025177306,
+              "_id": "66d31aac124fa13304b01fac"
+            }
+          ],
+          "_id": "66d31aac124fa13304b01fa7"
+        }
+      ],
+      "original": {
+        "thumbnailUrl": "https://cdn.yanlucas.com/1725110951503-WP_20151019_10_42_26_Pro-thumbnail.jpeg",
+        "optimizedUrl": "https://cdn.yanlucas.com/1725110951503-WP_20151019_10_42_26_Pro-optimized.jpeg",
+        "fullSizeUrl": "https://cdn.yanlucas.com/1725110951503-WP_20151019_10_42_26_Pro.jpeg",
+        "versionName": "Original",
+        "colorPalette": [
+          {
+            "red": 173,
+            "green": 154,
+            "blue": 129,
+            "score": 0.35814834,
+            "pixelFraction": 0.4067376,
+            "_id": "66d31aac124fa13304b01fae"
+          },
+          {
+            "red": 187,
+            "green": 191,
+            "blue": 193,
+            "score": 0.32989842,
+            "pixelFraction": 0.19730496,
+            "_id": "66d31aac124fa13304b01faf"
+          },
+          {
+            "red": 80,
+            "green": 127,
+            "blue": 176,
+            "score": 0.0038706386,
+            "pixelFraction": 0.110212766,
+            "_id": "66d31aac124fa13304b01fb0"
+          },
+          {
+            "red": 165,
+            "green": 167,
+            "blue": 170,
+            "score": 0.12737857,
+            "pixelFraction": 0.10624114,
+            "_id": "66d31aac124fa13304b01fb1"
+          },
+          {
+            "red": 136,
+            "green": 159,
+            "blue": 184,
+            "score": 0.09293549,
+            "pixelFraction": 0.08425532,
+            "_id": "66d31aac124fa13304b01fb2"
+          }
+        ],
+        "_id": "66d31aac124fa13304b01fad"
+      },
+      "metadata": {
+        "camera": "Nokia Lumia 640",
+        "lens": "Wide",
+        "iso": "64",
+        "shutterSpeed": "1/1900",
+        "flash": "Off",
+        "whiteBalance": "Auto",
+        "aperture": "2.20",
+        "takenAt": "2015-10-19T10:42:26.000Z",
+        "fullSizeWidth": 2938,
+        "fullSizeHeight": 1836,
+        "optimizedWidth": 979,
+        "optimizedHeight": 612,
+        "thumbnailWidth": 196,
+        "thumbnailHeight": 122
+      },
+      "createdAt": "2024-08-31T13:29:16.352Z",
+      "updatedAt": "2024-10-14T05:11:04.076Z",
+      "__v": 3,
+      "city": "Jericoacoara",
+      "country": "Brazil",
+      "state": "Ceará",
+      "description": "Sunset Dune: This natural formation is part of the dynamic dune system along the"
+    },
+    {
+      "_id": "66d31e67124fa13304b0236d",
+      "tags": [
+        "Sky",
+        "Beach",
+        "Sand",
+        "Ocean",
+        "Landscape",
+        "Nature"
+      ],
+      "images": [
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1725111894256-WP_20151017_16_48_48_Pro-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1725111894256-WP_20151017_16_48_48_Pro-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1725111894256-WP_20151017_16_48_48_Pro.jpeg",
+          "versionName": "V1",
+          "colorPalette": [
+            {
+              "red": 69,
+              "green": 86,
+              "blue": 118,
+              "score": 0.21082066,
+              "pixelFraction": 0.082978725,
+              "_id": "66d31e67124fa13304b0236f"
+            },
+            {
+              "red": 128,
+              "green": 111,
+              "blue": 142,
+              "score": 0.2048509,
+              "pixelFraction": 0.08382979,
+              "_id": "66d31e67124fa13304b02370"
+            },
+            {
+              "red": 178,
+              "green": 139,
+              "blue": 155,
+              "score": 0.12827833,
+              "pixelFraction": 0.10099291,
+              "_id": "66d31e67124fa13304b02371"
+            },
+            {
+              "red": 56,
+              "green": 50,
+              "blue": 42,
+              "score": 0.08499909,
+              "pixelFraction": 0.08007092,
+              "_id": "66d31e67124fa13304b02372"
+            },
+            {
+              "red": 101,
+              "green": 68,
+              "blue": 52,
+              "score": 0.043955363,
+              "pixelFraction": 0.11397163,
+              "_id": "66d31e67124fa13304b02373"
+            }
+          ],
+          "_id": "66d31e67124fa13304b0236e"
+        },
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1725111898149-WP_20151017_16_48_48_Pro-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1725111898149-WP_20151017_16_48_48_Pro-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1725111898149-WP_20151017_16_48_48_Pro.jpeg",
+          "versionName": "V2",
+          "colorPalette": [
+            {
+              "red": 251,
+              "green": 111,
+              "blue": 17,
+              "score": 0.2823917,
+              "pixelFraction": 0.05113475,
+              "_id": "66d31e67124fa13304b02375"
+            },
+            {
+              "red": 67,
+              "green": 51,
+              "blue": 33,
+              "score": 0.25443098,
+              "pixelFraction": 0.1574468,
+              "_id": "66d31e67124fa13304b02376"
+            },
+            {
+              "red": 84,
+              "green": 85,
+              "blue": 82,
+              "score": 0.1116748,
+              "pixelFraction": 0.11680851,
+              "_id": "66d31e67124fa13304b02377"
+            },
+            {
+              "red": 124,
+              "green": 106,
+              "blue": 89,
+              "score": 0.041949604,
+              "pixelFraction": 0.05184397,
+              "_id": "66d31e67124fa13304b02378"
+            },
+            {
+              "red": 111,
+              "green": 66,
+              "blue": 29,
+              "score": 0.027341131,
+              "pixelFraction": 0.075886525,
+              "_id": "66d31e67124fa13304b02379"
+            }
+          ],
+          "_id": "66d31e67124fa13304b02374"
+        },
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1725111902570-WP_20151017_16_48_48_Pro-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1725111902570-WP_20151017_16_48_48_Pro-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1725111902570-WP_20151017_16_48_48_Pro.jpeg",
+          "versionName": "V3",
+          "colorPalette": [
+            {
+              "red": 110,
+              "green": 118,
+              "blue": 117,
+              "score": 0.32265955,
+              "pixelFraction": 0.10843971,
+              "_id": "66d31e67124fa13304b0237b"
+            },
+            {
+              "red": 166,
+              "green": 144,
+              "blue": 125,
+              "score": 0.123536184,
+              "pixelFraction": 0.03893617,
+              "_id": "66d31e67124fa13304b0237c"
+            },
+            {
+              "red": 63,
+              "green": 92,
+              "blue": 98,
+              "score": 0.114612825,
+              "pixelFraction": 0.081560284,
+              "_id": "66d31e67124fa13304b0237d"
+            },
+            {
+              "red": 176,
+              "green": 138,
+              "blue": 112,
+              "score": 0.11974045,
+              "pixelFraction": 0.015248227,
+              "_id": "66d31e67124fa13304b0237e"
+            },
+            {
+              "red": 140,
+              "green": 120,
+              "blue": 104,
+              "score": 0.09983101,
+              "pixelFraction": 0.011418439,
+              "_id": "66d31e67124fa13304b0237f"
+            }
+          ],
+          "_id": "66d31e67124fa13304b0237a"
+        }
+      ],
+      "original": {
+        "thumbnailUrl": "https://cdn.yanlucas.com/1725111905417-WP_20151017_16_48_48_Pro-thumbnail.jpeg",
+        "optimizedUrl": "https://cdn.yanlucas.com/1725111905417-WP_20151017_16_48_48_Pro-optimized.jpeg",
+        "fullSizeUrl": "https://cdn.yanlucas.com/1725111905417-WP_20151017_16_48_48_Pro.jpeg",
+        "versionName": "Original",
+        "colorPalette": [
+          {
+            "red": 160,
+            "green": 160,
+            "blue": 159,
+            "score": 0.27428332,
+            "pixelFraction": 0.14078014,
+            "_id": "66d31e67124fa13304b02381"
+          },
+          {
+            "red": 207,
+            "green": 191,
+            "blue": 171,
+            "score": 0.21404164,
+            "pixelFraction": 0.055177305,
+            "_id": "66d31e67124fa13304b02382"
+          },
+          {
+            "red": 87,
+            "green": 88,
+            "blue": 83,
+            "score": 0.018865155,
+            "pixelFraction": 0.21673758,
+            "_id": "66d31e67124fa13304b02383"
+          },
+          {
+            "red": 136,
+            "green": 149,
+            "blue": 168,
+            "score": 0.15737565,
+            "pixelFraction": 0.10531915,
+            "_id": "66d31e67124fa13304b02384"
+          },
+          {
+            "red": 189,
+            "green": 185,
+            "blue": 177,
+            "score": 0.14964586,
+            "pixelFraction": 0.09815603,
+            "_id": "66d31e67124fa13304b02385"
+          }
+        ],
+        "_id": "66d31e67124fa13304b02380"
+      },
+      "metadata": {
+        "camera": "Nokia Lumia 640",
+        "lens": "Wide",
+        "iso": "64",
+        "shutterSpeed": "1/1200",
+        "flash": "Off",
+        "whiteBalance": "Auto",
+        "aperture": "2.20",
+        "takenAt": "2015-10-17T16:48:50.000Z",
+        "fullSizeWidth": 2944,
+        "fullSizeHeight": 1840,
+        "optimizedWidth": 981,
+        "optimizedHeight": 613,
+        "thumbnailWidth": 196,
+        "thumbnailHeight": 123
+      },
+      "createdAt": "2024-08-31T13:45:11.427Z",
+      "updatedAt": "2024-10-14T05:19:16.589Z",
+      "__v": 2,
+      "city": "Jericoacoara",
+      "country": "Brazil",
+      "state": "Ceará",
+      "description": "Jericoacoara Beach: A fine example of a coastal ecosystem shaped by wind and tid"
+    },
+    {
+      "_id": "66d31f8f124fa13304b024c1",
+      "tags": [
+        "Sky",
+        "Landscape",
+        "Night",
+        "Twilight",
+        "Nature"
+      ],
+      "images": [],
+      "original": {
+        "thumbnailUrl": "https://cdn.yanlucas.com/1725112201616-WP_20151016_17_51_24_Pro-thumbnail.jpeg",
+        "optimizedUrl": "https://cdn.yanlucas.com/1725112201616-WP_20151016_17_51_24_Pro-optimized.jpeg",
+        "fullSizeUrl": "https://cdn.yanlucas.com/1725112201616-WP_20151016_17_51_24_Pro.jpeg",
+        "versionName": "Original",
+        "colorPalette": [
+          {
+            "red": 70,
+            "green": 85,
+            "blue": 113,
+            "score": 0.41914177,
+            "pixelFraction": 0.21269503,
+            "_id": "66d31f8f124fa13304b024c3"
+          },
+          {
+            "red": 206,
+            "green": 184,
+            "blue": 152,
+            "score": 0.065252334,
+            "pixelFraction": 0.03368794,
+            "_id": "66d31f8f124fa13304b024c4"
+          },
+          {
+            "red": 37,
+            "green": 59,
+            "blue": 90,
+            "score": 0.17670384,
+            "pixelFraction": 0.32205674,
+            "_id": "66d31f8f124fa13304b024c5"
+          },
+          {
+            "red": 103,
+            "green": 109,
+            "blue": 130,
+            "score": 0.1342655,
+            "pixelFraction": 0.051702127,
+            "_id": "66d31f8f124fa13304b024c6"
+          },
+          {
+            "red": 124,
+            "green": 125,
+            "blue": 135,
+            "score": 0.06752812,
+            "pixelFraction": 0.08510638,
+            "_id": "66d31f8f124fa13304b024c7"
+          }
+        ],
+        "_id": "66d31f8f124fa13304b024c2"
+      },
+      "metadata": {
+        "camera": "Nokia Lumia 640",
+        "lens": "Wide",
+        "iso": "250",
+        "shutterSpeed": "1/25",
+        "flash": "Off",
+        "whiteBalance": "Auto",
+        "aperture": "2.20",
+        "takenAt": "2015-10-16T17:51:25.000Z",
+        "fullSizeWidth": 2944,
+        "fullSizeHeight": 1839,
+        "optimizedWidth": 981,
+        "optimizedHeight": 613,
+        "thumbnailWidth": 196,
+        "thumbnailHeight": 123
+      },
+      "createdAt": "2024-08-31T13:50:07.172Z",
+      "updatedAt": "2024-10-14T05:20:19.302Z",
+      "__v": 3,
+      "city": "Jericoacoara",
+      "country": "Brazil",
+      "state": "Ceará",
+      "description": "Jericoacoara Beach: A fine example of a coastal ecosystem shaped by wind and tid"
+    },
+    {
+      "_id": "66ee7c372e06e822f24ebbbf",
+      "tags": [
+        "Neon",
+        "Cyberpunk",
+        "Machine",
+        "Nature"
+      ],
+      "images": [
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1726905395442-DSC02730-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1726905395442-DSC02730-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1726905395442-DSC02730.jpeg",
+          "versionName": "V1",
+          "colorPalette": [
+            {
+              "red": 79,
+              "green": 45,
+              "blue": 52,
+              "score": 0.10492095,
+              "pixelFraction": 0.075666666,
+              "_id": "66ee7c372e06e822f24ebbc1"
+            },
+            {
+              "red": 135,
+              "green": 114,
+              "blue": 84,
+              "score": 0.077802196,
+              "pixelFraction": 0.0035,
+              "_id": "66ee7c372e06e822f24ebbc2"
+            },
+            {
+              "red": 183,
+              "green": 195,
+              "blue": 229,
+              "score": 0.017716128,
+              "pixelFraction": 0.0008888889,
+              "_id": "66ee7c372e06e822f24ebbc3"
+            },
+            {
+              "red": 248,
+              "green": 233,
+              "blue": 240,
+              "score": 0.008572102,
+              "pixelFraction": 0.00077777775,
+              "_id": "66ee7c372e06e822f24ebbc4"
+            },
+            {
+              "red": 207,
+              "green": 180,
+              "blue": 189,
+              "score": 0.0054963375,
+              "pixelFraction": 0.0007222222,
+              "_id": "66ee7c372e06e822f24ebbc5"
+            }
+          ],
+          "_id": "66ee7c372e06e822f24ebbc0"
+        }
+      ],
+      "metadata": {
+        "camera": "N/A",
+        "lens": "N/A",
+        "iso": "N/A",
+        "shutterSpeed": "N/A",
+        "flash": "Off",
+        "whiteBalance": "Auto",
+        "aperture": "N/A",
+        "takenAt": "2023-09-16T15:23:27.000Z",
+        "fullSizeWidth": 3200,
+        "fullSizeHeight": 4000,
+        "optimizedWidth": 1067,
+        "optimizedHeight": 1333,
+        "thumbnailWidth": 320,
+        "thumbnailHeight": 400
+      },
+      "createdAt": "2024-09-21T07:56:39.919Z",
+      "updatedAt": "2024-10-16T05:05:59.314Z",
+      "__v": 1,
+      "country": "Brazil",
+      "state": null,
+      "description": "Indoor cultivation is the practice of growing plants in a controlled, indoor environment, typically using artificial light, temperature, and humidity regulation to optimize growth conditions."
+    },
+    {
+      "_id": "66d405ca124fa13304b052bc",
+      "tags": [
+        "Night",
+        "People",
+        "Cyberpunk",
+        "Neon",
+        "Urban"
+      ],
+      "images": [
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1725171128999-IMG_20220907_212656-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1725171128999-IMG_20220907_212656-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1725171128999-IMG_20220907_212656.jpeg",
+          "versionName": "V1",
+          "colorPalette": [
+            {
+              "red": 26,
+              "green": 129,
+              "blue": 146,
+              "score": 0.112645164,
+              "pixelFraction": 0.02377581,
+              "_id": "66d405ca124fa13304b052be"
+            },
+            {
+              "red": 32,
+              "green": 166,
+              "blue": 179,
+              "score": 0.102067456,
+              "pixelFraction": 0.014277286,
+              "_id": "66d405ca124fa13304b052bf"
+            },
+            {
+              "red": 14,
+              "green": 60,
+              "blue": 57,
+              "score": 0.06590215,
+              "pixelFraction": 0.113274336,
+              "_id": "66d405ca124fa13304b052c0"
+            },
+            {
+              "red": 5,
+              "green": 54,
+              "blue": 79,
+              "score": 0.042103317,
+              "pixelFraction": 0.022300884,
+              "_id": "66d405ca124fa13304b052c1"
+            },
+            {
+              "red": 10,
+              "green": 157,
+              "blue": 235,
+              "score": 0.0126434,
+              "pixelFraction": 0.0010029499,
+              "_id": "66d405ca124fa13304b052c2"
+            }
+          ],
+          "_id": "66d405ca124fa13304b052bd"
+        },
+        {
+          "thumbnailUrl": "https://cdn.yanlucas.com/1725171134736-IMG_20220907_212656-thumbnail.jpeg",
+          "optimizedUrl": "https://cdn.yanlucas.com/1725171134736-IMG_20220907_212656-optimized.jpeg",
+          "fullSizeUrl": "https://cdn.yanlucas.com/1725171134736-IMG_20220907_212656.jpeg",
+          "versionName": "V2",
+          "colorPalette": [
+            {
+              "red": 208,
+              "green": 73,
+              "blue": 21,
+              "score": 0.16064402,
+              "pixelFraction": 0.040058997,
+              "_id": "66d405ca124fa13304b052c4"
+            },
+            {
+              "red": 136,
+              "green": 51,
+              "blue": 21,
+              "score": 0.057166237,
+              "pixelFraction": 0.031091446,
+              "_id": "66d405ca124fa13304b052c5"
+            },
+            {
+              "red": 79,
+              "green": 36,
+              "blue": 20,
+              "score": 0.023496935,
+              "pixelFraction": 0.090324484,
+              "_id": "66d405ca124fa13304b052c6"
+            },
+            {
+              "red": 248,
+              "green": 104,
+              "blue": 56,
+              "score": 0.118987,
+              "pixelFraction": 0.016519174,
+              "_id": "66d405ca124fa13304b052c7"
+            },
+            {
+              "red": 252,
+              "green": 235,
+              "blue": 211,
+              "score": 0.0010206795,
+              "pixelFraction": 0.0007079646,
+              "_id": "66d405ca124fa13304b052c8"
+            }
+          ],
+          "_id": "66d405ca124fa13304b052c3"
+        }
+      ],
+      "original": {
+        "thumbnailUrl": "https://cdn.yanlucas.com/1725171139292-IMG_20220907_212656-thumbnail.jpeg",
+        "optimizedUrl": "https://cdn.yanlucas.com/1725171139292-IMG_20220907_212656-optimized.jpeg",
+        "fullSizeUrl": "https://cdn.yanlucas.com/1725171139292-IMG_20220907_212656.jpeg",
+        "versionName": "Original",
+        "colorPalette": [
+          {
+            "red": 155,
+            "green": 158,
+            "blue": 165,
+            "score": 0.21274962,
+            "pixelFraction": 0.10589971,
+            "_id": "66d405ca124fa13304b052ca"
+          },
+          {
+            "red": 21,
+            "green": 21,
+            "blue": 22,
+            "score": 0.06702632,
+            "pixelFraction": 0.34979352,
+            "_id": "66d405ca124fa13304b052cb"
+          },
+          {
+            "red": 187,
+            "green": 188,
+            "blue": 193,
+            "score": 0.1783101,
+            "pixelFraction": 0.083657816,
+            "_id": "66d405ca124fa13304b052cc"
+          },
+          {
+            "red": 178,
+            "green": 190,
+            "blue": 215,
+            "score": 0.09247744,
+            "pixelFraction": 0.0061946902,
+            "_id": "66d405ca124fa13304b052cd"
+          },
+          {
+            "red": 119,
+            "green": 121,
+            "blue": 126,
+            "score": 0.090402834,
+            "pixelFraction": 0.08648968,
+            "_id": "66d405ca124fa13304b052ce"
+          }
+        ],
+        "_id": "66d405ca124fa13304b052c9"
+      },
+      "metadata": {
+        "camera": "Poco X3 Pro",
+        "lens": "Wide",
+        "iso": "1480",
+        "shutterSpeed": "1/20",
+        "flash": "Off",
+        "whiteBalance": "Auto",
+        "aperture": "1.80",
+        "takenAt": "2022-09-07T21:26:57.000Z",
+        "fullSizeWidth": 3000,
+        "fullSizeHeight": 4000,
+        "optimizedWidth": 1000,
+        "optimizedHeight": 1333,
+        "thumbnailWidth": 200,
+        "thumbnailHeight": 267,
+        "cameraTrueDirection": 241,
+        "latitude": -23.541744,
+        "longitude": -46.6413137
+      },
+      "createdAt": "2024-09-01T06:12:26.591Z",
+      "updatedAt": "2024-10-14T05:24:02.805Z",
+      "__v": 2,
+      "city": "São Paulo",
+      "country": "Brazil",
+      "state": "São Paulo",
+      "description": "São Paulo: A megacity that stands as a global hub for commerce, culture, and innovation. Founded in 1554 as a Jesuit mission, it has grown into the most populous city in americas and one of the largest urban centers in the world. The city sits on the Brazilian Plateau, surrounded by the Serra do Mar mountain range, which has historically influenced its climate and development. São Paulo's urban landscape is a mix of modern skyscrapers and historical architecture, reflecting its rapid industrialization during the 20th century. The city's complex transportation networks, including extensive roadways, rail systems, and one of the busiest helicopter fleets globally, exemplify its role as a critical infrastructure node in Latin America."
+    }
+  ],
+  "total": 784
+}

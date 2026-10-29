@@ -1,0 +1,366 @@
+@import './tokens.css';
+
+/* Sem min(), clamp(), gap no flex nem inset: navegadores de TV de 2018. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--dl-background);
+}
+
+body {
+  color: var(--dl-foreground);
+  touch-action: manipulation;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app,
+#stage,
+#clock-box,
+.layer,
+.veil {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  position: fixed;
+  overflow: hidden;
+  background: var(--dl-background);
+}
+
+#app.idle {
+  cursor: none;
+}
+
+/* Contexto próprio: o z-index das camadas não passa por cima do relógio */
+#stage {
+  z-index: 0;
+}
+
+/* Camadas das fotos: crossfade por opacity */
+.layer {
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--dl-crossfade) ease;
+}
+
+/* A nova foto entra por cima da anterior, que só some depois do crossfade */
+.layer.front {
+  opacity: 1;
+  z-index: 2;
+}
+
+.layer.prev {
+  opacity: 1;
+  z-index: 1;
+}
+
+.layer img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+
+.layer.fit img {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Na camada: foto, véu e textos, nessa ordem; o véu não escurece os textos */
+.veil {
+  background-image: var(--dl-veil);
+}
+
+/* Local, título e resumo no canto inferior esquerdo, de baixo para cima; não se movem com a foto.
+   Largura min(560 × ui, 100% − 2 × margem) sem min(): width com teto em max-width. */
+.info {
+  position: absolute;
+  left: calc(var(--dl-info-margin) * var(--dl-ui));
+  bottom: calc(var(--dl-info-margin) * var(--dl-ui));
+  width: calc(var(--dl-info-width) * var(--dl-ui));
+  max-width: calc(100% - 2 * var(--dl-info-margin) * var(--dl-ui));
+  color: var(--dl-info-color);
+  text-shadow: 0 calc(var(--dl-date-shadow-y) * var(--dl-ui)) calc(var(--dl-date-shadow-blur) * var(--dl-ui)) var(--dl-date-shadow-color);
+}
+
+/* Campo vazio ou desligado nos ajustes não aparece; o espaço vai acima de cada linha */
+.info-place,
+.info-title,
+.info-text {
+  display: none;
+  margin-top: calc(var(--dl-info-gap) * var(--dl-ui));
+}
+
+.has-place .info-place {
+  display: block;
+}
+
+/* Corte em N linhas com "…": -webkit-line-clamp existe no Chromium 53 e no Safari 12 */
+.has-title .info-title,
+.has-text .info-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+#app.no-place .info-place,
+#app.no-description .info-title,
+#app.no-description .info-text {
+  display: none;
+}
+
+/* Janela muito baixa (celular pequeno deitado): o resumo cobriria a data, então só ficam local e título */
+@media (max-height: 380px) {
+  .has-text .info-text {
+    display: none;
+  }
+}
+
+.info-place {
+  color: var(--dl-info-muted);
+  font-size: calc(var(--dl-info-place-size) * var(--dl-ui));
+  line-height: 1.3;
+}
+
+.info-place svg {
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.25em;
+  vertical-align: -0.2em;
+  fill: currentColor;
+}
+
+.info-title {
+  font-size: calc(var(--dl-info-title-size) * var(--dl-ui));
+  font-weight: var(--dl-info-title-weight);
+  line-height: 1.25;
+  -webkit-line-clamp: var(--dl-info-title-lines);
+}
+
+.info-text {
+  color: var(--dl-info-muted);
+  font-size: calc(var(--dl-info-text-size) * var(--dl-ui));
+  line-height: 1.35;
+  -webkit-line-clamp: var(--dl-info-lines);
+}
+
+/* Relógio e data centralizados, como o DeckLock em repouso */
+#clock-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+#clock {
+  color: var(--dl-clock-color);
+  font-size: calc(var(--dl-clock-size) * var(--dl-u));
+  font-weight: var(--dl-clock-weight);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 calc(var(--dl-clock-shadow-y) * var(--dl-u)) calc(var(--dl-clock-shadow-blur) * var(--dl-u)) var(--dl-clock-shadow-color);
+  white-space: nowrap;
+}
+
+#clock-period {
+  font-size: 0.32em;
+  margin-left: 0.2em;
+}
+
+#date {
+  color: var(--dl-date-color);
+  font-size: calc(var(--dl-date-size) * var(--dl-u));
+  text-shadow: 0 calc(var(--dl-date-shadow-y) * var(--dl-u)) calc(var(--dl-date-shadow-blur) * var(--dl-u)) var(--dl-date-shadow-color);
+}
+
+#app.no-clock #clock,
+#app.no-date #date {
+  display: none;
+}
+
+#notice {
+  display: none;
+  margin-top: calc(18 * var(--dl-ui));
+  color: var(--dl-notice-color);
+  font-size: calc(var(--dl-notice-size) * var(--dl-ui));
+  text-shadow: 0 calc(2 * var(--dl-ui)) calc(8 * var(--dl-ui)) var(--dl-notice-shadow-color);
+}
+
+#app.has-notice #notice {
+  display: block;
+}
+
+/* Botões discretos no canto */
+#controls {
+  position: absolute;
+  top: calc(18 * var(--dl-ui));
+  right: calc(18 * var(--dl-ui));
+  display: flex;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dl-fade) ease;
+}
+
+#app.show-controls #controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--dl-button-size) * var(--dl-ui));
+  height: calc(var(--dl-button-size) * var(--dl-ui));
+  margin-left: calc(10 * var(--dl-ui));
+  padding: 0;
+  border: 1px solid var(--dl-button-border);
+  border-radius: calc(var(--dl-button-radius) * var(--dl-ui));
+  background-color: var(--dl-button-bg);
+  color: var(--dl-foreground);
+  transition: background-color var(--dl-fast) ease, box-shadow var(--dl-fast) ease;
+}
+
+.control svg {
+  width: 55%;
+  height: 55%;
+  fill: currentColor;
+}
+
+.fs-exit,
+#app.is-fullscreen .fs-enter {
+  display: none;
+}
+
+#app.is-fullscreen .fs-exit {
+  display: inline;
+}
+
+#app.no-fullscreen #btn-fullscreen {
+  display: none;
+}
+
+/* Painel de ajustes: fundo escuro translúcido, cantos arredondados */
+#panel {
+  display: none;
+  position: absolute;
+  top: calc(70 * var(--dl-ui));
+  right: calc(18 * var(--dl-ui));
+  box-sizing: border-box;
+  width: calc(var(--dl-panel-width) * var(--dl-ui));
+  max-width: calc(100% - 36 * var(--dl-ui));
+  max-height: calc(100% - 88 * var(--dl-ui));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(12 * var(--dl-ui)) calc(18 * var(--dl-ui)) calc(18 * var(--dl-ui));
+  border: 1px solid var(--dl-panel-border);
+  border-radius: calc(var(--dl-panel-radius) * var(--dl-ui));
+  background-color: var(--dl-panel-bg);
+  color: var(--dl-settings-text);
+}
+
+#app.panel-open #panel {
+  display: block;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: calc(var(--dl-panel-title-size) * var(--dl-ui));
+  font-weight: bold;
+}
+
+.row {
+  margin-top: calc(14 * var(--dl-ui));
+}
+
+.row-label {
+  margin-bottom: calc(6 * var(--dl-ui));
+  color: var(--dl-settings-muted);
+  font-size: calc(var(--dl-panel-label-size) * var(--dl-ui));
+}
+
+.options {
+  display: flex;
+}
+
+.option,
+.close {
+  border: 1px solid transparent;
+  border-radius: calc(var(--dl-button-radius) * var(--dl-ui));
+  background-color: var(--dl-button-bg);
+  color: var(--dl-settings-text);
+  font-size: calc(var(--dl-option-size) * var(--dl-ui));
+  transition: background-color var(--dl-fast) ease, border-color var(--dl-fast) ease, box-shadow var(--dl-fast) ease;
+}
+
+.option {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-right: calc(6 * var(--dl-ui));
+  padding: calc(8 * var(--dl-ui)) calc(6 * var(--dl-ui));
+  white-space: nowrap;
+}
+
+.option:last-child {
+  margin-right: 0;
+}
+
+.option[aria-pressed='true'] {
+  border-color: var(--dl-accent);
+  background-color: var(--dl-option-selected);
+  color: #ffffff;
+}
+
+.close {
+  width: calc(32 * var(--dl-ui));
+  height: calc(32 * var(--dl-ui));
+  padding: 0;
+  background-color: transparent;
+  color: var(--dl-settings-muted);
+  font-size: calc(18 * var(--dl-ui));
+  line-height: 1;
+}
+
+.control:hover,
+.option:hover,
+.close:hover {
+  background-color: var(--dl-button-hover);
+  color: #ffffff;
+}
+
+/* Foco visível do controle remoto/teclado: destaque do DeckLock */
+#app.keyboard .control:focus,
+#app.keyboard .option:focus,
+#app.keyboard .close:focus {
+  border-color: var(--dl-accent);
+  box-shadow: 0 0 0 calc(var(--dl-focus-ring) * var(--dl-ui)) var(--dl-accent);
+}
