@@ -79,6 +79,13 @@
   /* Anel de foco do controle remoto */
   --dl-focus-ring: 3;
 
+  /* Áreas próprias (design D4): texto pequeno, médio e grande (escala --dl-ui, como o HTML do
+     endpoint), e o ponto âmbar de erro do endpoint com conteúdo anterior */
+  --dl-area-text-s: 18;
+  --dl-area-text-m: 28;
+  --dl-area-text-l: 44;
+  --dl-area-error: #ffb020;
+
   /* Tempos: crossfade do GtkStack (600 ms) e transições curtas dos botões (150/200 ms) */
   --dl-crossfade: 600ms;
   --dl-fast: 150ms;

@@ -50,8 +50,24 @@ export const RETRY_FIRST_MS = 5 * 1000;
 export const RETRY_MAX_MS = 5 * 60 * 1000;
 export const REQUEST_TIMEOUT_MS = 15 * 1000;
 
-export function playlistUrl(bucket: Size): string {
-  return '/api/playlist?w=' + bucket.w + '&h=' + bucket.h;
+// Mesmo formato que a API aceita; fora dele, a API responderia 400 e o player ficaria sem fotos.
+const LANG_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/;
+
+// Primeiro idioma preferido do navegador, como vier (a API canoniza com 308); null sem nenhum.
+// Algumas TVs informam `pt_BR`: o sublinhado vira hífen.
+export function browserLang(nav: { languages?: ReadonlyArray<string>; language?: string }): string | null {
+  const first = (nav.languages && nav.languages[0]) || nav.language || '';
+  const tag = first.trim().replace(/_/g, '-');
+  return LANG_TAG.test(tag) ? tag : null;
+}
+
+export function playlistUrl(bucket: Size, lang: string | null = null): string {
+  return '/api/playlist?w=' + bucket.w + '&h=' + bucket.h + (lang ? '&lang=' + encodeURIComponent(lang) : '');
+}
+
+// Playlist guardada por idioma pedido: português guardado não aparece num navegador em inglês.
+export function playlistKey(lang: string | null): string {
+  return lang ? PLAYLIST_KEY + '.' + lang : PLAYLIST_KEY;
 }
 
 const ORIENTATIONS: ReadonlyArray<Orientation> = ['landscape', 'portrait', 'square'];
@@ -106,20 +122,24 @@ export function parseItems(body: unknown): PlaylistItem[] | null {
   return out;
 }
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('timeout')), ms);
-    p.then(
-      (v) => {
-        clearTimeout(t);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(t);
-        reject(e);
-      },
-    );
+// Tempo limite sem AbortController (Chromium 53): Promise.race da promessa contra um setTimeout. A
+// chamada abandonada segue até o fim, mas a resposta dela é ignorada.
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    t = setTimeout(() => reject(new Error('timeout')), ms);
   });
+  const done = () => clearTimeout(t);
+  return Promise.race([p, timeout]).then(
+    (v) => {
+      done();
+      return v;
+    },
+    (e) => {
+      done();
+      throw e;
+    },
+  );
 }
 
 export class PlaylistClient {
@@ -130,11 +150,17 @@ export class PlaylistClient {
   // Descarta respostas de uma faixa antiga.
   private seq = 0;
 
+  private key: string;
+
   constructor(
     private http: HttpFetch,
     private storage: StorageLike | null,
     private events: PlaylistEvents,
-  ) {}
+    // Idioma pedido à API (`browserLang`); null pede o inglês da origem.
+    private lang: string | null = null,
+  ) {
+    this.key = playlistKey(lang);
+  }
 
   start(bucket: Size): void {
     this.bucket = bucket;
@@ -158,7 +184,7 @@ export class PlaylistClient {
   private stored(): Playlist | null {
     if (!this.storage) return null;
     try {
-      const raw = JSON.parse(this.storage.getItem(PLAYLIST_KEY) || 'null');
+      const raw = JSON.parse(this.storage.getItem(this.key) || 'null');
       const items = parseItems(raw);
       if (!items || typeof raw.bucket !== 'string') return null;
       return { bucket: raw.bucket, etag: typeof raw.etag === 'string' ? raw.etag : null, items };
@@ -170,7 +196,7 @@ export class PlaylistClient {
   private save(p: Playlist): void {
     if (!this.storage) return;
     try {
-      this.storage.setItem(PLAYLIST_KEY, JSON.stringify(p));
+      this.storage.setItem(this.key, JSON.stringify(p));
     } catch (e) {
       // Sem espaço: fica só em memória.
     }
@@ -198,7 +224,7 @@ export class PlaylistClient {
     const headers: Record<string, string> = {};
     if (known && known.etag) headers['If-None-Match'] = known.etag;
 
-    withTimeout(this.http(playlistUrl(this.bucket), { headers }), REQUEST_TIMEOUT_MS)
+    withTimeout(this.http(playlistUrl(this.bucket, this.lang), { headers }), REQUEST_TIMEOUT_MS)
       .then((res) => {
         if (res.status === 304 && known) return known;
         if (res.status !== 200) throw new Error('HTTP ' + res.status);

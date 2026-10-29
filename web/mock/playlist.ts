@@ -1,5 +1,6 @@
 // Mock de /api/playlist só para o servidor de desenvolvimento (VITE_MOCK=1).
 // Fotos reais da API pública do yanlucas.com (somente leitura), com corte central simples.
+// `lang`: sem traduções no mock, redireciona sempre para o inglês, como a API faz com idioma sem tradução.
 // Chaves de teste: GET /__mock?fail=1 (API fora do ar), ?broken=1 (fotos com erro), ?slow=1 (playlist lenta),
 // ?pick=0,4 (só esses itens, na ordem da lista; ?pick= volta a todos).
 import type { Connect, Plugin } from 'vite';
@@ -233,8 +234,15 @@ const middleware: Connect.NextHandleFunction = (req, res, next) => {
     res.end('w e h devem ser inteiros entre 1 e 16384');
     return;
   }
+  // O mock não tem traduções: qualquer `lang` válido redireciona para a URL sem `lang` (inglês).
+  const lang = url.searchParams.get('lang');
+  if (lang !== null && !/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(lang)) {
+    res.statusCode = 400;
+    res.end('lang inválido');
+    return;
+  }
   const c = canonicalBucket(w, h);
-  if (c.w !== w || c.h !== h) {
+  if (c.w !== w || c.h !== h || lang !== null) {
     res.statusCode = 308;
     res.setHeader('Location', '/api/playlist?w=' + c.w + '&h=' + c.h);
     res.end();

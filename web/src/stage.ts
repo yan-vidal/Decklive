@@ -1,6 +1,7 @@
 // Palco: duas camadas alternadas por opacity, com carga e decodificação antes da troca.
 // Cada camada tem a foto, o véu e os textos da foto; só a foto se move (design D4 e D5).
 import type { Crop, PlaylistItem } from './api';
+import type { InfoBlocks } from './layout';
 import { orientationOf, type Orientation } from './screen';
 import { Deck } from './shuffle';
 import type { FitMode } from './settings';
@@ -120,21 +121,29 @@ export function originOf(box: Box, vw: number, vh: number): string {
 }
 
 // Trecho do movimento em curso: sai do progresso p0 no instante t0 e chega ao fim em `ms`.
-interface Move {
+export interface Move {
   plan: Plan;
   p0: number;
   t0: number;
   ms: number;
 }
 
-function progressOf(m: Move, now: number): number {
+export function progressOf(m: Move, now: number): number {
   return m.ms > 0 ? Math.min(1, m.p0 + ((1 - m.p0) * (now - m.t0)) / m.ms) : 1;
+}
+
+// Pausa (modo de edição): guarda o progresso de agora e o tempo que falta; ao retomar, só o t0 muda.
+export function pauseMove(m: Move, now: number): Move {
+  return { plan: m.plan, p0: progressOf(m, now), t0: now, ms: Math.max(0, m.t0 + m.ms - now) };
 }
 
 interface Layer {
   el: HTMLDivElement;
   img: HTMLImageElement;
   info: HTMLDivElement;
+  // Blocos posicionáveis (design D2): local e descrição (título e resumo).
+  placeBlock: HTMLDivElement;
+  desc: HTMLDivElement;
   place: HTMLSpanElement;
   title: HTMLDivElement;
   text: HTMLDivElement;
@@ -162,6 +171,10 @@ function fillInfo(l: Layer): void {
   l.info.className = 'info' + (place ? ' has-place' : '') + (title ? ' has-title' : '') + (text ? ' has-text' : '');
 }
 
+function blocksOf(l: Layer): InfoBlocks {
+  return { layer: l.el, place: l.placeBlock, desc: l.desc };
+}
+
 export interface StageOptions {
   mode: FitMode;
   skipOther: boolean;
@@ -186,6 +199,10 @@ export class Stage {
   private vh: number;
   // Orientação da faixa para a qual os cortes da playlist foram calculados.
   private cropScreen: Orientation | null = null;
+  // Modo de edição: sem troca e sem movimento; `remaining` é o tempo da troca que falta.
+  private paused = false;
+  private timerDue = 0;
+  private remaining: number | null = null;
 
   constructor(
     root: HTMLElement,
@@ -205,19 +222,23 @@ export class Stage {
       veil.className = 'veil';
       const info = document.createElement('div');
       info.className = 'info';
-      info.innerHTML = '<div class="info-place">' + PIN + '<span></span></div><div class="info-title"></div><div class="info-text"></div>';
+      info.innerHTML =
+        '<div class="info-place">' + PIN + '<span></span></div><div class="info-desc"><div class="info-title"></div><div class="info-text"></div></div>';
       el.appendChild(img);
       el.appendChild(veil);
       el.appendChild(info);
       root.appendChild(el);
-      const parts = info.children;
+      const placeBlock = info.children[0] as HTMLDivElement;
+      const desc = info.children[1] as HTMLDivElement;
       return {
         el,
         img,
         info,
-        place: parts[0].lastChild as HTMLSpanElement,
-        title: parts[1] as HTMLDivElement,
-        text: parts[2] as HTMLDivElement,
+        placeBlock,
+        desc,
+        place: placeBlock.lastChild as HTMLSpanElement,
+        title: desc.children[0] as HTMLDivElement,
+        text: desc.children[1] as HTMLDivElement,
         item: null,
         ready: false,
         box: null,
@@ -234,6 +255,18 @@ export class Stage {
     return this.all.length;
   }
 
+  // Texto novo numa camada prestes a aparecer (ou na atual): layout.ts posiciona local e descrição dela.
+  onInfo: ((blocks: InfoBlocks) => void) | null = null;
+
+  // Local e descrição das duas camadas, e os da frente (sem foto, os da primeira).
+  infoBlocks(): InfoBlocks[] {
+    return this.layers.map(blocksOf);
+  }
+
+  frontInfo(): InfoBlocks {
+    return blocksOf(this.current() || this.layers[0]);
+  }
+
   // Nova playlist (inclusive de outra faixa): a foto atual ganha o corte novo na hora.
   setItems(items: PlaylistItem[], cropScreen: Orientation): void {
     this.all = items;
@@ -245,6 +278,7 @@ export class Stage {
       if (updated) {
         cur.item = updated;
         fillInfo(cur);
+        if (this.onInfo) this.onInfo(blocksOf(cur));
         this.layout(cur);
       }
     }
@@ -266,6 +300,42 @@ export class Stage {
       // O movimento da foto atual termina junto com o novo tempo.
       const cur = this.current();
       if (cur && cur.move) this.applyMove(cur, this.opts.interval * 1000 + CROSSFADE_MS);
+    }
+  }
+
+  // Modo de edição (design D3): a foto atual fica, parada onde o movimento estava.
+  pause(): void {
+    if (this.paused) return;
+    const now = Date.now();
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+      this.remaining = Math.max(0, this.timerDue - now);
+    }
+    this.paused = true;
+    for (const l of this.layers) {
+      if (!l.move) continue;
+      l.move = pauseMove(l.move, now);
+      this.applyMove(l);
+    }
+  }
+
+  // Retoma de onde parou: o movimento termina no mesmo ponto e a troca vem no tempo que faltava.
+  resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    const now = Date.now();
+    for (const l of this.layers) {
+      if (!l.move) continue;
+      l.move.t0 = now;
+      this.applyMove(l);
+    }
+    if (this.remaining !== null) {
+      const ms = this.remaining;
+      this.remaining = null;
+      this.startTimer(ms);
+    } else if (this.due) {
+      this.swap();
     }
   }
 
@@ -341,6 +411,15 @@ export class Stage {
       s.transition = s.transform = s.transformOrigin = '';
       return;
     }
+    if (this.paused) {
+      // Parada no progresso guardado; um tempo novo (outro intervalo) vale ao retomar.
+      if (ms !== undefined) m.ms = ms;
+      const ends = motionEnds(l.box !== null, m.plan, this.vw, this.vh);
+      s.transition = 'none';
+      s.transformOrigin = l.box ? originOf(l.box, this.vw, this.vh) : '';
+      s.transform = transformOf(motionAt(ends.from, ends.to, m.p0));
+      return;
+    }
     const now = Date.now();
     const p = progressOf(m, now);
     const end = m.t0 + m.ms;
@@ -402,6 +481,7 @@ export class Stage {
     if (this.timer !== null) clearTimeout(this.timer);
     if (this.retryTimer !== null) clearTimeout(this.retryTimer);
     this.timer = this.retryTimer = null;
+    this.remaining = null;
   }
 
   // Baixa e decodifica a próxima foto na camada escondida.
@@ -451,22 +531,29 @@ export class Stage {
     img.src = item.src;
   }
 
-  private startTimer(): void {
+  private startTimer(ms: number = this.opts.interval * 1000): void {
     if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+    if (this.paused) {
+      this.remaining = ms;
+      return;
+    }
+    this.timerDue = Date.now() + ms;
     this.timer = setTimeout(() => {
       this.timer = null;
       this.due = true;
       this.swap();
-    }, this.opts.interval * 1000);
+    }, ms);
   }
 
-  // Troca só com a próxima pronta; a nova camada sobe por cima da atual.
+  // Troca só com a próxima pronta; a nova camada sobe por cima da atual. Em pausa, espera o resume().
   private swap(): void {
     const next = this.back();
-    if (!next.ready || !next.item) return;
+    if (this.paused || !next.ready || !next.item) return;
     const prev = this.current();
     this.due = false;
     this.layout(next);
+    if (this.onInfo) this.onInfo(blocksOf(next));
     // Começa com o crossfade e dura o tempo da foto mais o crossfade de saída; depois fica parada no fim.
     this.plan = nextPlan(this.plan);
     if (this.opts.motion) this.startMove(next, this.plan, this.opts.interval * 1000 + CROSSFADE_MS);

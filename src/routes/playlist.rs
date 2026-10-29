@@ -7,9 +7,10 @@ use axum::response::{IntoResponse, Response};
 use crate::app::AppState;
 use crate::bucket::{self, MAX_SIDE};
 use crate::error::ApiError;
+use crate::lang;
 
 pub const CACHE_CONTROL: &str = "public, max-age=60, s-maxage=300, stale-while-revalidate=86400";
-/// O redirecionamento para a faixa canônica só muda se o algoritmo mudar.
+/// O redirecionamento só pela faixa canônica só muda se o algoritmo mudar.
 const REDIRECT_CACHE_CONTROL: &str = "public, max-age=86400";
 /// Abaixo disso, comprimir não compensa.
 const MIN_COMPRESS: usize = 512;
@@ -20,24 +21,44 @@ pub async fn get(State(state): State<AppState>, uri: Uri, headers: HeaderMap) ->
         Ok(size) => size,
         Err(message) => return ApiError::BadRequest(message).into_response(),
     };
+    let requested = match parse_lang(query) {
+        Ok(lang) => lang,
+        Err(message) => return ApiError::BadRequest(message).into_response(),
+    };
 
-    // Só a URL canônica, byte a byte, é respondida; o resto vai para ela.
+    // O mesmo snapshot escolhe o idioma e monta a resposta.
+    let snapshot = state.catalog().snapshot();
     let screen = bucket::canonical(w, h);
-    let canonical = format!("w={}&h={}", screen.w, screen.h);
+    let lang = requested
+        .as_deref()
+        .and_then(|tag| snapshot.canonical_lang(tag));
+
+    // Só a URL canônica, byte a byte, é respondida; o resto vai para ela, com a faixa e
+    // o idioma acertados num redirecionamento só. O inglês é a URL sem `lang`.
+    let canonical = match lang {
+        Some(tag) => format!("w={}&h={}&lang={tag}", screen.w, screen.h),
+        None => format!("w={}&h={}", screen.w, screen.h),
+    };
     if query != canonical {
         let location = format!("/api/playlist?{canonical}");
+        // O idioma escolhido depende das traduções gravadas (um idioma novo muda o
+        // destino), então esse redirecionamento vale tanto quanto a playlist.
+        let cache = if requested.is_some() {
+            CACHE_CONTROL
+        } else {
+            REDIRECT_CACHE_CONTROL
+        };
         return (
             StatusCode::PERMANENT_REDIRECT,
             [
                 (header::LOCATION, location),
-                (header::CACHE_CONTROL, REDIRECT_CACHE_CONTROL.to_string()),
+                (header::CACHE_CONTROL, cache.to_string()),
             ],
         )
             .into_response();
     }
 
-    let snapshot = state.catalog().snapshot();
-    let rendered = snapshot.playlist(screen);
+    let rendered = snapshot.playlist(screen, lang);
     let etag = HeaderValue::from_str(&rendered.etag).expect("ETag é ASCII");
     let common = [
         (header::ETAG, etag),
@@ -111,6 +132,21 @@ fn parse_size(query: &str) -> Result<(u32, u32), String> {
             .ok_or_else(|| format!("{name} precisa ser um inteiro entre 1 e {MAX_SIDE}"))
     };
     Ok((parse("w", w)?, parse("h", h)?))
+}
+
+/// Lê `lang`, se veio: uma etiqueta de idioma válida, já normalizada (`pt-br` → `pt-BR`).
+/// Vale o primeiro `lang`, como em `w` e `h`.
+fn parse_lang(query: &str) -> Result<Option<String>, String> {
+    let Some(value) = query
+        .split('&')
+        .filter_map(|pair| pair.split_once('=').or(Some((pair, ""))))
+        .find_map(|(key, value)| (key == "lang").then_some(value))
+    else {
+        return Ok(None);
+    };
+    lang::normalize(value)
+        .map(Some)
+        .ok_or_else(|| "lang precisa ser uma etiqueta de idioma, como pt-BR ou es".into())
 }
 
 /// `If-None-Match` com o ETag atual (comparação fraca, como manda o HTTP para 304).
@@ -199,6 +235,32 @@ mod tests {
     }
 
     #[test]
+    fn lang_is_optional_validated_and_normalized() {
+        assert_eq!(parse_lang("w=1920&h=1080"), Ok(None));
+        assert_eq!(
+            parse_lang("w=1920&h=1080&lang=pt-br"),
+            Ok(Some("pt-BR".into()))
+        );
+        assert_eq!(parse_lang("lang=ES&w=1"), Ok(Some("es".into())));
+        // vale o primeiro
+        assert_eq!(
+            parse_lang("lang=pt-BR&lang=xx_YY"),
+            Ok(Some("pt-BR".into()))
+        );
+        // `language` não é `lang`
+        assert_eq!(parse_lang("language=pt-BR"), Ok(None));
+        for bad in [
+            "lang",
+            "lang=",
+            "lang=pt_BR",
+            "lang=pt%2DBR",
+            "lang=portuguese",
+        ] {
+            assert!(parse_lang(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
     fn negotiation_prefers_brotli_and_honors_q_zero() {
         let headers = |v: &str| {
             let mut h = HeaderMap::new();
@@ -219,17 +281,34 @@ mod tests {
             h.insert(header::IF_NONE_MATCH, HeaderValue::from_str(v).unwrap());
             h
         };
-        let etag = "\"r3-1920x1080-mubbs7i8\"";
-        assert!(etag_matches(&headers("\"r3-1920x1080-mubbs7i8\""), etag));
-        assert!(etag_matches(&headers("W/\"r3-1920x1080-mubbs7i8\""), etag));
+        let etag = "\"r3-1920x1080-pt-BR-mubbs7i8\"";
         assert!(etag_matches(
-            &headers("\"r2-1920x1080-mubbs7i8\", \"r3-1920x1080-mubbs7i8\""),
+            &headers("\"r3-1920x1080-pt-BR-mubbs7i8\""),
+            etag
+        ));
+        assert!(etag_matches(
+            &headers("W/\"r3-1920x1080-pt-BR-mubbs7i8\""),
+            etag
+        ));
+        assert!(etag_matches(
+            &headers("\"r2-1920x1080-pt-BR-mubbs7i8\", \"r3-1920x1080-pt-BR-mubbs7i8\""),
             etag
         ));
         assert!(etag_matches(&headers("*"), etag));
-        assert!(!etag_matches(&headers("\"r2-1920x1080-mubbs7i8\""), etag));
+        assert!(!etag_matches(
+            &headers("\"r2-1920x1080-pt-BR-mubbs7i8\""),
+            etag
+        ));
         // mesmo catálogo, outra instância do processo
-        assert!(!etag_matches(&headers("\"r3-1920x1080-mubbs7i9\""), etag));
+        assert!(!etag_matches(
+            &headers("\"r3-1920x1080-pt-BR-mubbs7i9\""),
+            etag
+        ));
+        // mesmo catálogo, outro idioma
+        assert!(!etag_matches(
+            &headers("\"r3-1920x1080-en-mubbs7i8\""),
+            etag
+        ));
         assert!(!etag_matches(&HeaderMap::new(), etag));
     }
 }

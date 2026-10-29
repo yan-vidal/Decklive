@@ -65,14 +65,53 @@ export function moveInGrid(
   return { row: next, col: p >= 0 ? p : Math.min(col, lengths[next] - 1) };
 }
 
-function pressedIndex(buttons: HTMLButtonElement[]): number {
+export function pressedIndex(buttons: HTMLElement[]): number {
   for (let i = 0; i < buttons.length; i++) if (buttons[i].getAttribute('aria-pressed') === 'true') return i;
   return -1;
 }
 
+// Campo de texto do painel ou do formulário de uma área.
+export interface TextField {
+  tagName: string;
+  value: string;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+}
+
+export function isTextField(el: unknown): el is TextField {
+  const tag = el && (el as { tagName?: string }).tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA';
+}
+
+// Tecla que fica com o campo de texto (o navegador a trata): Backspace apaga, as setas andam pelo
+// texto e o Enter quebra a linha no textarea. Com o cursor já na ponta, as setas saem do campo, para
+// o controle remoto não ficar preso nele. Esc e o Voltar da TV continuam sendo Voltar.
+export function fieldKeeps(el: TextField, action: KeyAction, e: { key?: string; keyCode?: number }): boolean {
+  if (e.key === 'Backspace' || e.keyCode === 8) return true;
+  const multi = el.tagName === 'TEXTAREA';
+  if (action === 'enter') return multi;
+  if (action === 'back' || (!multi && (action === 'up' || action === 'down'))) return false;
+  let start: number | null;
+  let end: number | null;
+  try {
+    start = el.selectionStart;
+    end = el.selectionEnd;
+  } catch (err) {
+    return false;
+  }
+  if (start === null || end === null) return false;
+  if (start !== end) return true;
+  return action === 'left' || action === 'up' ? start > 0 : start < el.value.length;
+}
+
+// Dono das teclas enquanto um modo ocupa a tela (o editor, o formulário de uma área): recebe todas as
+// ações. Devolver false deixa a tecla com o navegador (texto num campo).
+export type KeyHandler = (action: KeyAction, e: KeyboardEvent) => boolean | void;
+
 export class Controls {
   private visible = false;
   private panelOpen = false;
+  private modal: KeyHandler | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private shownAt = 0;
   private lastX = -1;
@@ -125,8 +164,14 @@ export class Controls {
     this.armHide();
   }
 
+  // Com um modo aberto, as setas e o Voltar vão para ele, e os botões não somem nem perdem o foco.
+  setModal(handler: KeyHandler | null): void {
+    this.modal = handler;
+    if (!handler) this.show();
+  }
+
   hide(): void {
-    if (this.panelOpen) return;
+    if (this.panelOpen || this.modal) return;
     this.visible = false;
     if (this.hideTimer !== null) clearTimeout(this.hideTimer);
     this.hideTimer = null;
@@ -159,7 +204,7 @@ export class Controls {
     this.hideTimer = setTimeout(() => this.hide(), HIDE_AFTER_MS);
   }
 
-  private grid(): HTMLButtonElement[][] {
+  private grid(): HTMLElement[][] {
     if (this.panelOpen) return this.panel.rows;
     return [this.bar.filter((b) => b.offsetParent !== null)];
   }
@@ -167,7 +212,17 @@ export class Controls {
   private onKey(e: KeyboardEvent): void {
     const action = keyAction(e);
     this.app.classList.add('keyboard');
+    if (this.modal) {
+      // Voltar também fica com o modo: fecha o modo, e não sai da página.
+      if (action && this.modal(action, e) !== false) e.preventDefault();
+      return;
+    }
     if (!action) {
+      this.show();
+      return;
+    }
+    const field = document.activeElement;
+    if (this.panelOpen && isTextField(field) && fieldKeeps(field, action, e)) {
       this.show();
       return;
     }
@@ -190,7 +245,7 @@ export class Controls {
     const active = document.activeElement;
     let from: Cell | null = null;
     grid.forEach((row, r) => {
-      const c = row.indexOf(active as HTMLButtonElement);
+      const c = row.indexOf(active as HTMLElement);
       if (c >= 0) from = { row: r, col: c };
     });
     if (!from) {
@@ -200,7 +255,8 @@ export class Controls {
       return;
     }
     if (action === 'enter') {
-      (active as HTMLButtonElement).click();
+      // Num campo, o Enter fica com o próprio campo (o código é enviado por ele).
+      if (!isTextField(active)) (active as HTMLElement).click();
       return;
     }
     const to = moveInGrid(

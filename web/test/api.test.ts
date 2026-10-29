@@ -3,7 +3,10 @@ import {
   PLAYLIST_KEY,
   PlaylistClient,
   REFRESH_MS,
+  browserLang,
   parseItems,
+  playlistKey,
+  playlistUrl,
   type HttpFetch,
   type HttpResponse,
   type Playlist,
@@ -38,13 +41,18 @@ function response(status: number, body: unknown = null, etag: string | null = nu
   };
 }
 
-function setup(http: HttpFetch, storage: StorageLike | null = new MemoryStorage()) {
+function setup(http: HttpFetch, storage: StorageLike | null = new MemoryStorage(), lang: string | null = null) {
   const playlists: { p: Playlist; source: string }[] = [];
   const offline: boolean[] = [];
-  const client = new PlaylistClient(http, storage, {
-    onPlaylist: (p, source) => playlists.push({ p, source }),
-    onOffline: (o) => offline.push(o),
-  });
+  const client = new PlaylistClient(
+    http,
+    storage,
+    {
+      onPlaylist: (p, source) => playlists.push({ p, source }),
+      onOffline: (o) => offline.push(o),
+    },
+    lang,
+  );
   return { client, playlists, offline };
 }
 
@@ -230,5 +238,78 @@ describe('parseItems', () => {
     expect(parseItems({})).toBeNull();
     expect(parseItems('x')).toBeNull();
     expect(parseItems({ items: [] })).toEqual([]);
+  });
+});
+
+describe('idioma da playlist', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('browserLang: primeiro idioma preferido, senão navigator.language, senão nenhum', () => {
+    expect(browserLang({ languages: ['pt-BR', 'en-US'], language: 'en-US' })).toBe('pt-BR');
+    expect(browserLang({ languages: [], language: 'fr' })).toBe('fr');
+    expect(browserLang({ language: 'zh-Hant-TW' })).toBe('zh-Hant-TW');
+    expect(browserLang({})).toBeNull();
+    expect(browserLang({ languages: [''], language: '' })).toBeNull();
+  });
+
+  it('browserLang: etiqueta como vier; sublinhado vira hífen e formato que a API recusaria (400) não vai', () => {
+    expect(browserLang({ language: 'pt-br' })).toBe('pt-br');
+    expect(browserLang({ language: 'pt_BR' })).toBe('pt-BR');
+    expect(browserLang({ language: 'en-US-u-ca-gregory' })).toBeNull();
+    expect(browserLang({ language: 'português' })).toBeNull();
+  });
+
+  it('playlistUrl e playlistKey levam o idioma pedido; sem idioma, ficam como antes', () => {
+    expect(playlistUrl({ w: 1920, h: 1080 }, 'pt-BR')).toBe('/api/playlist?w=1920&h=1080&lang=pt-BR');
+    expect(playlistUrl({ w: 1920, h: 1080 }, null)).toBe('/api/playlist?w=1920&h=1080');
+    expect(playlistKey('pt-BR')).toBe(PLAYLIST_KEY + '.pt-BR');
+    expect(playlistKey(null)).toBe(PLAYLIST_KEY);
+  });
+
+  it('Navegador em português: pede com lang=pt-BR e guarda a playlist só para pt-BR', async () => {
+    const http = vi.fn<HttpFetch>(() =>
+      Promise.resolve(response(200, { items: [Object.assign({}, ITEM, { place: 'Japão' })] }, '"r1-1920x1080-pt-BR-b"')),
+    );
+    const storage = new MemoryStorage();
+    const { client, playlists } = setup(http, storage, browserLang({ languages: ['pt-BR', 'en'] }));
+    client.start({ w: 1920, h: 1080 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(http).toHaveBeenCalledWith('/api/playlist?w=1920&h=1080&lang=pt-BR', { headers: {} });
+    expect(playlists[0].p.items[0].place).toBe('Japão');
+    expect(JSON.parse(storage.data[PLAYLIST_KEY + '.pt-BR']).etag).toBe('"r1-1920x1080-pt-BR-b"');
+    expect(storage.data[PLAYLIST_KEY]).toBeUndefined();
+  });
+
+  it('playlist guardada é a do idioma pedido: a de outro idioma não serve sem rede', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PLAYLIST_KEY, JSON.stringify({ bucket: '1920x1080', etag: '"r1"', items: [Object.assign({}, ITEM, { place: 'Japan' })] }));
+    const pt = setup(down, storage, 'pt-BR');
+    pt.client.start({ w: 1920, h: 1080 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pt.playlists).toHaveLength(0);
+    expect(pt.offline).toEqual([true]);
+    pt.client.stop();
+
+    storage.setItem(PLAYLIST_KEY + '.pt-BR', JSON.stringify({ bucket: '1920x1080', etag: '"r1"', items: [Object.assign({}, ITEM, { place: 'Japão' })] }));
+    const again = setup(down, storage, 'pt-BR');
+    again.client.start({ w: 1920, h: 1080 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(again.playlists.map((x) => [x.source, x.p.items[0].place])).toEqual([['stored', 'Japão']]);
+  });
+
+  it('If-None-Match vale para a playlist do mesmo idioma', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(PLAYLIST_KEY + '.pt-BR', JSON.stringify({ bucket: '1920x1080', etag: '"r1-pt"', items: [ITEM] }));
+    storage.setItem(PLAYLIST_KEY, JSON.stringify({ bucket: '1920x1080', etag: '"r1-en"', items: [ITEM] }));
+    const http = vi.fn<HttpFetch>(() => Promise.resolve(response(304)));
+    const { client } = setup(http, storage, 'pt-BR');
+    client.start({ w: 1920, h: 1080 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(http.mock.calls[0][1]).toEqual({ headers: { 'If-None-Match': '"r1-pt"' } });
   });
 });

@@ -21,6 +21,9 @@ pub enum ApiError {
     NotFound(String),
     #[error("{0}")]
     BadGateway(String),
+    /// Limite de memória cheio (envio de ajustes).
+    #[error("{0}")]
+    Unavailable(String),
     /// Rejeição do extrator (JSON malformado, tipo de conteúdo etc.).
     #[error("{message}")]
     Rejected { status: StatusCode, message: String },
@@ -46,6 +49,7 @@ impl ApiError {
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request"),
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found"),
             ApiError::BadGateway(_) => (StatusCode::BAD_GATEWAY, "bad_gateway"),
+            ApiError::Unavailable(_) => (StatusCode::SERVICE_UNAVAILABLE, "unavailable"),
             ApiError::Rejected { status, .. } => (*status, "invalid_body"),
             ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal"),
         }
@@ -60,6 +64,15 @@ impl From<sqlx::Error> for ApiError {
 
 impl From<axum::extract::rejection::JsonRejection> for ApiError {
     fn from(r: axum::extract::rejection::JsonRejection) -> Self {
+        ApiError::Rejected {
+            status: r.status(),
+            message: r.body_text(),
+        }
+    }
+}
+
+impl From<axum::extract::rejection::BytesRejection> for ApiError {
+    fn from(r: axum::extract::rejection::BytesRejection) -> Self {
         ApiError::Rejected {
             status: r.status(),
             message: r.body_text(),

@@ -20,6 +20,7 @@ body {
 
 #app,
 #stage,
+#areas,
 #clock-box,
 .layer,
 .veil {
@@ -38,6 +39,21 @@ body {
 
 #app.idle {
   cursor: none;
+}
+
+/* Modo de edição: cursor sempre visível, botões e painel fora */
+#app.editing {
+  cursor: default;
+}
+
+#app.editing #controls,
+#app.editing #panel {
+  display: none;
+}
+
+/* Conteúdo de uma área aberto: o modo de edição fica por baixo, sem receber cliques */
+#app.area-form-open #editor {
+  pointer-events: none;
 }
 
 /* Contexto próprio: o z-index das camadas não passa por cima do relógio */
@@ -115,10 +131,68 @@ body {
   overflow: hidden;
 }
 
+/* Modo de edição: bloco vazio na foto atual ainda ocupa uma linha, para ter contorno */
+#app.editing .info-place {
+  display: block;
+  min-height: 1.3em;
+}
+
+#app.editing .info-desc {
+  min-height: calc(var(--dl-info-title-size) * 1.25 * var(--dl-ui));
+}
+
 #app.no-place .info-place,
+#app.no-description .info-desc,
 #app.no-description .info-title,
 #app.no-description .info-text {
   display: none;
+}
+
+/* Local ou descrição movidos (design D2): cada bloco se posiciona sozinho na camada; o outro fica
+   sozinho no canto. Largura e margens iguais às do padrão. */
+#app.place-moved .info,
+#app.desc-moved .info {
+  position: static;
+}
+
+#app.place-moved .info-place,
+#app.place-moved .info-desc,
+#app.desc-moved .info-place,
+#app.desc-moved .info-desc {
+  position: absolute;
+  left: calc(var(--dl-info-margin) * var(--dl-ui));
+  bottom: calc(var(--dl-info-margin) * var(--dl-ui));
+  width: calc(var(--dl-info-width) * var(--dl-ui));
+  max-width: calc(100% - 2 * var(--dl-info-margin) * var(--dl-ui));
+  margin-top: 0;
+}
+
+/* Sem o espaço acima da primeira linha de cada bloco solto */
+#app.place-moved .info-title,
+#app.desc-moved .info-title,
+#app.place-moved .info:not(.has-title) .info-text,
+#app.desc-moved .info:not(.has-title) .info-text {
+  margin-top: 0;
+}
+
+/* Posição vinda das variáveis de cada camada (layout.ts): o mesmo centro guardado, medido pelo texto
+   daquela foto; o crossfade não muda */
+#app.place-moved .info-place {
+  left: var(--dl-pos-place-left);
+  right: var(--dl-pos-place-right);
+  top: var(--dl-pos-place-top);
+  bottom: var(--dl-pos-place-bottom);
+  transform: var(--dl-pos-place-transform);
+  text-align: var(--dl-pos-place-align);
+}
+
+#app.desc-moved .info-desc {
+  left: var(--dl-pos-desc-left);
+  right: var(--dl-pos-desc-right);
+  top: var(--dl-pos-desc-top);
+  bottom: var(--dl-pos-desc-bottom);
+  transform: var(--dl-pos-desc-transform);
+  text-align: var(--dl-pos-desc-align);
 }
 
 /* Janela muito baixa (celular pequeno deitado): o resumo cobriria a data, então só ficam local e título */
@@ -187,7 +261,13 @@ body {
   text-shadow: 0 calc(var(--dl-date-shadow-y) * var(--dl-u)) calc(var(--dl-date-shadow-blur) * var(--dl-u)) var(--dl-date-shadow-color);
 }
 
-#app.no-clock #clock,
+/* Relógio ou data movidos (design D1): posição própria sobre a janela, calculada em layout.ts */
+#clock-box .moved {
+  position: absolute;
+  white-space: nowrap;
+}
+
+#app.no-clock #clock-block,
 #app.no-date #date {
   display: none;
 }
@@ -201,6 +281,94 @@ body {
 }
 
 #app.has-notice #notice {
+  display: block;
+}
+
+/* Áreas próprias (design D4): acima do véu e abaixo do relógio e dos controles; não recebem o
+   ponteiro, para o mouse sobre um iframe continuar mostrando os botões */
+#areas {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.area {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Texto com as quebras de linha digitadas, branco com a sombra da data */
+.area-text {
+  color: #ffffff;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  text-shadow: 0 calc(var(--dl-date-shadow-y) * var(--dl-ui)) calc(var(--dl-date-shadow-blur) * var(--dl-ui)) var(--dl-date-shadow-color);
+}
+
+.area-s {
+  font-size: calc(var(--dl-area-text-s) * var(--dl-ui));
+}
+
+.area-m {
+  font-size: calc(var(--dl-area-text-m) * var(--dl-ui));
+}
+
+.area-l {
+  font-size: calc(var(--dl-area-text-l) * var(--dl-ui));
+}
+
+/* Imagem inteira e centrada; só aparece depois de carregar (falhou: área vazia) */
+.area-img,
+.area-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+
+.area-img {
+  object-fit: contain;
+}
+
+.area-img.loaded,
+.area-frame.shown {
+  visibility: visible;
+}
+
+.area-frame {
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Endpoint com erro: ponto âmbar sobre o último conteúdo, ou a mensagem quando não há nenhum */
+.area-dot,
+.area-msg {
+  display: none;
+}
+
+.area-dot {
+  position: absolute;
+  top: calc(6 * var(--dl-ui));
+  right: calc(6 * var(--dl-ui));
+  width: calc(10 * var(--dl-ui));
+  height: calc(10 * var(--dl-ui));
+  border-radius: 50%;
+  background-color: var(--dl-area-error);
+  box-shadow: 0 0 calc(6 * var(--dl-ui)) rgba(0, 0, 0, 0.8);
+}
+
+.area-msg {
+  color: var(--dl-notice-color);
+  font-size: calc(var(--dl-notice-size) * var(--dl-ui));
+  text-shadow: 0 calc(2 * var(--dl-ui)) calc(8 * var(--dl-ui)) var(--dl-notice-shadow-color);
+}
+
+.area-error .area-dot,
+.area-failed .area-msg {
   display: block;
 }
 
@@ -263,8 +431,9 @@ button {
   display: none;
 }
 
-/* Painel de ajustes: fundo escuro translúcido, cantos arredondados */
-#panel {
+/* Painel de ajustes e conteúdo de uma área: fundo escuro translúcido, cantos arredondados */
+#panel,
+#area-form {
   display: none;
   position: absolute;
   top: calc(70 * var(--dl-ui));
@@ -284,6 +453,136 @@ button {
 
 #app.panel-open #panel {
   display: block;
+}
+
+/* Conteúdo de uma área: centrado, por cima do modo de edição */
+#area-form {
+  left: 50%;
+  right: auto;
+  z-index: 11;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+}
+
+#area-form.open {
+  display: block;
+}
+
+.af-sec {
+  display: none;
+}
+
+#area-form.kind-text .af-text,
+#area-form.kind-image .af-image,
+#area-form.kind-endpoint .af-endpoint {
+  display: block;
+}
+
+.af-error {
+  margin-top: calc(10 * var(--dl-ui));
+  color: var(--dl-notice-color);
+  font-size: calc(var(--dl-panel-label-size) * var(--dl-ui));
+}
+
+.af-error:empty {
+  display: none;
+}
+
+/* Campos de texto: o teclado da TV abre neles; seleção de texto liberada só aqui */
+.field {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: calc(8 * var(--dl-ui)) calc(10 * var(--dl-ui));
+  border: 1px solid var(--dl-button-border);
+  border-radius: calc(10 * var(--dl-ui));
+  background-color: var(--dl-settings-surface);
+  color: var(--dl-settings-text);
+  font-family: inherit;
+  font-size: calc(var(--dl-option-size) * var(--dl-ui));
+  line-height: 1.3;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+textarea.field {
+  resize: vertical;
+}
+
+.field.code {
+  font-family: Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: calc(14 * var(--dl-ui));
+}
+
+.field:focus {
+  border-color: var(--dl-accent);
+  box-shadow: 0 0 0 calc(var(--dl-focus-ring) * var(--dl-ui)) var(--dl-accent);
+}
+
+.option.primary {
+  border-color: var(--dl-accent);
+  background-color: var(--dl-option-selected);
+}
+
+/* Envio de ajustes: o código ao lado do botão de receber, e o estado de cada lado */
+.transfer-receive .field {
+  -webkit-box-flex: 1;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  margin-right: calc(6 * var(--dl-ui));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.transfer-receive .option {
+  flex: 0 0 auto;
+}
+
+.transfer-status {
+  margin: calc(6 * var(--dl-ui)) 0;
+  color: var(--dl-settings-muted);
+  font-size: calc(var(--dl-panel-label-size) * var(--dl-ui));
+}
+
+.transfer-status:empty {
+  display: none;
+}
+
+/* Código do envio, grande no centro da tela enquanto o painel está aberto */
+#pair-code {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  padding: calc(20 * var(--dl-ui)) calc(36 * var(--dl-ui));
+  border: 1px solid var(--dl-panel-border);
+  border-radius: calc(var(--dl-panel-radius) * var(--dl-ui));
+  background-color: var(--dl-panel-bg);
+  text-align: center;
+}
+
+#app.panel-open #pair-code.on {
+  display: block;
+}
+
+.pair-code-value {
+  color: #ffffff;
+  font-size: calc(72 * var(--dl-ui));
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pair-code-time {
+  color: var(--dl-settings-muted);
+  font-size: calc(18 * var(--dl-ui));
 }
 
 .panel-head {
@@ -363,4 +662,170 @@ button {
 #app.keyboard .close:focus {
   border-color: var(--dl-accent);
   box-shadow: 0 0 0 calc(var(--dl-focus-ring) * var(--dl-ui)) var(--dl-accent);
+}
+
+/* Ações do painel (editar tela, restaurar): um botão por linha, sem estado escolhido */
+.options + .options {
+  margin-top: calc(6 * var(--dl-ui));
+}
+
+.option.action {
+  margin-right: 0;
+}
+
+/* Modo de edição (design D3): contornos por cima de tudo e a barra no alto */
+#editor {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
+
+#app.editing #editor {
+  display: block;
+}
+
+.ed-frame {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 2px dashed var(--dl-accent);
+  border-radius: calc(6 * var(--dl-ui));
+  background-color: rgba(122, 162, 247, 0.1);
+  cursor: move;
+  touch-action: none;
+  z-index: 1;
+  transition: background-color var(--dl-fast) ease, box-shadow var(--dl-fast) ease;
+}
+
+/* Área própria: abaixo dos contornos do relógio, da data e dos textos, que ela pode cobrir */
+.ed-frame.ed-area {
+  z-index: 0;
+}
+
+.ed-frame:hover,
+#app.keyboard .ed-frame:focus {
+  border-style: solid;
+  background-color: rgba(122, 162, 247, 0.2);
+}
+
+#app.keyboard .ed-frame:focus {
+  box-shadow: 0 0 0 calc(var(--dl-focus-ring) * var(--dl-ui)) var(--dl-accent);
+}
+
+/* Alça de tamanho das áreas, no canto inferior direito do contorno */
+.ed-handle {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: calc(22 * var(--dl-ui));
+  height: calc(22 * var(--dl-ui));
+  border-radius: calc(6 * var(--dl-ui)) 0 calc(6 * var(--dl-ui)) 0;
+  background-color: var(--dl-accent);
+  cursor: nwse-resize;
+}
+
+/* Menu de uma área (Mover, Redimensionar, Conteúdo, Excluir), junto ao contorno */
+.ed-menu {
+  position: absolute;
+  z-index: 3;
+  padding: calc(8 * var(--dl-ui));
+  border: 1px solid var(--dl-panel-border);
+  border-radius: calc(14 * var(--dl-ui));
+  background-color: var(--dl-panel-bg);
+}
+
+.ed-menu .ed-btn {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 calc(6 * var(--dl-ui));
+  text-align: left;
+}
+
+.ed-menu .ed-btn:last-child {
+  margin-bottom: 0;
+}
+
+/* Pego pelo controle: as setas movem */
+.ed-frame.grabbed,
+#app.keyboard .ed-frame.grabbed:focus {
+  border-style: solid;
+  background-color: rgba(122, 162, 247, 0.35);
+}
+
+.ed-label {
+  position: absolute;
+  left: -2px;
+  bottom: 100%;
+  padding: calc(2 * var(--dl-ui)) calc(8 * var(--dl-ui));
+  border-radius: calc(6 * var(--dl-ui)) calc(6 * var(--dl-ui)) 0 0;
+  background-color: var(--dl-accent);
+  color: #10131a;
+  font-size: calc(13 * var(--dl-ui));
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* Contorno encostado no alto: o nome vai para baixo */
+.ed-frame.label-below .ed-label {
+  top: 100%;
+  bottom: auto;
+  border-radius: 0 0 calc(6 * var(--dl-ui)) calc(6 * var(--dl-ui));
+}
+
+.ed-bar {
+  position: absolute;
+  z-index: 2;
+  top: calc(14 * var(--dl-ui));
+  left: 0;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 calc(12 * var(--dl-ui));
+  text-align: center;
+  pointer-events: none;
+}
+
+.ed-btn {
+  display: inline-block;
+  margin: 0 calc(4 * var(--dl-ui)) calc(8 * var(--dl-ui));
+  padding: calc(8 * var(--dl-ui)) calc(14 * var(--dl-ui));
+  border: 1px solid var(--dl-button-border);
+  border-radius: calc(var(--dl-button-radius) * var(--dl-ui));
+  background-color: var(--dl-panel-bg);
+  color: var(--dl-settings-text);
+  font-size: calc(var(--dl-option-size) * var(--dl-ui));
+  white-space: nowrap;
+  pointer-events: auto;
+  transition: background-color var(--dl-fast) ease, box-shadow var(--dl-fast) ease;
+}
+
+.ed-btn:hover {
+  background-color: var(--dl-button-hover);
+  color: #ffffff;
+}
+
+.ed-btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ed-btn[disabled]:hover {
+  background-color: var(--dl-panel-bg);
+  color: var(--dl-settings-text);
+}
+
+#app.keyboard .ed-btn:focus {
+  border-color: var(--dl-accent);
+  box-shadow: 0 0 0 calc(var(--dl-focus-ring) * var(--dl-ui)) var(--dl-accent);
+}
+
+.ed-hint {
+  color: var(--dl-foreground);
+  font-size: calc(var(--dl-panel-label-size) * var(--dl-ui));
+  text-shadow: 0 calc(2 * var(--dl-ui)) calc(8 * var(--dl-ui)) var(--dl-notice-shadow-color);
 }

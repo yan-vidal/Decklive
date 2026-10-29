@@ -449,6 +449,7 @@ dependencies = [
  "brotli",
  "bytes",
  "flate2",
+ "getrandom 0.4.3",
  "http-body-util",
  "imagesize",
  "reqwest",

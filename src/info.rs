@@ -1,5 +1,6 @@
 //! Textos prontos para exibir sobre a foto: local, título e resumo (design D2 de
-//! `add-photo-info-and-motion`). Funções puras; o catálogo as chama uma vez por versão.
+//! `add-photo-info-and-motion`). Funções puras; o catálogo as chama uma vez por versão
+//! e por idioma (design D3 de `add-localized-descriptions`).
 
 use crate::model::Media;
 
@@ -17,8 +18,18 @@ pub const TITLE_MAX_CHARS: usize = 80;
 pub const SUMMARY_MAX_CHARS: usize = 240;
 
 impl Info {
+    /// Textos em inglês, como vêm da origem.
     pub fn of(m: &Media) -> Self {
-        let (title, text) = match m.description.as_deref() {
+        Self::localized(m, |_| None)
+    }
+
+    /// Textos num idioma: `lookup` devolve a tradução de um texto da origem (já sem
+    /// espaços nas pontas), se houver. A descrição e cada parte do local são trocadas
+    /// antes das regras de sempre; o que não tem tradução fica em inglês.
+    pub fn localized<'a>(m: &'a Media, lookup: impl Fn(&str) -> Option<&'a str>) -> Self {
+        // sem tradução, o texto segue como veio: `split_description` olha o fim dele
+        let translate = |text: Option<&'a str>| text.map(|t| lookup(t.trim()).unwrap_or(t));
+        let (title, text) = match translate(m.description.as_deref()) {
             Some(desc) => {
                 let (title, rest) = split_description(desc);
                 (title.map(String::from), summary(rest))
@@ -26,7 +37,11 @@ impl Info {
             None => (None, None),
         };
         Info {
-            place: place(m.city.as_deref(), m.state.as_deref(), m.country.as_deref()),
+            place: place(
+                translate(m.city.as_deref()),
+                translate(m.state.as_deref()),
+                translate(m.country.as_deref()),
+            ),
             title,
             text,
         }
@@ -425,6 +440,126 @@ mod tests {
             created_at: String::new(),
             updated_at: String::new(),
         }
+    }
+
+    /// Busca de traduções a partir de uma tabela fixa.
+    fn dict<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<&'a str> {
+        |source| pairs.iter().find(|(s, _)| *s == source).map(|(_, t)| *t)
+    }
+
+    const SUNSET_PT: &str = "Duna do Pôr do Sol: Esta formação natural faz parte do sistema \
+        dinâmico de dunas da costa nordeste do Brasil. Moldada constantemente pelo vento…";
+
+    #[test]
+    fn info_with_translated_description_has_translated_title_and_text() {
+        let m = media(Some(SUNSET), Some("Jericoacoara"), None, Some("Brazil"));
+        let info = Info::localized(&m, dict(&[(SUNSET, SUNSET_PT), ("Brazil", "Brasil")]));
+        assert_eq!(
+            info,
+            Info {
+                place: Some("Jericoacoara, Brasil".into()),
+                title: Some("Duna do Pôr do Sol".into()),
+                text: Some(
+                    "Esta formação natural faz parte do sistema dinâmico de dunas da costa \
+                     nordeste do Brasil."
+                        .into()
+                ),
+            }
+        );
+
+        // tradução sem título: o resumo sai da tradução inteira, mesmo com título no inglês
+        let info = Info::localized(
+            &m,
+            dict(&[(SUNSET, "esta formação natural é parte do litoral. Mais.")]),
+        );
+        assert_eq!(info.title, None);
+        assert_eq!(
+            info.text.as_deref(),
+            Some("Esta formação natural é parte do litoral.")
+        );
+    }
+
+    #[test]
+    fn info_with_partial_translation_falls_back_to_english_per_part() {
+        let m = media(Some(FORMIGA), Some("Osaka"), Some("Osaka"), Some("Japan"));
+        let info = Info::localized(&m, dict(&[("Japan", "Japão")]));
+        assert_eq!(info.place.as_deref(), Some("Osaka, Japão"));
+        // a descrição sem tradução fica em inglês
+        assert_eq!(info.title, None);
+        assert!(
+            info.text
+                .unwrap()
+                .starts_with("Formiga Waterfall is a hidden gem")
+        );
+
+        // só a descrição traduzida: o local fica em inglês
+        let m = media(
+            Some(SUNSET),
+            Some("Jericoacoara"),
+            Some("Ceará"),
+            Some("Brazil"),
+        );
+        let info = Info::localized(&m, dict(&[(SUNSET, SUNSET_PT)]));
+        assert_eq!(info.place.as_deref(), Some("Jericoacoara, Ceará, Brazil"));
+        assert_eq!(info.title.as_deref(), Some("Duna do Pôr do Sol"));
+
+        // nada traduzido: igual ao inglês
+        assert_eq!(Info::localized(&m, dict(&[])), Info::of(&m));
+    }
+
+    #[test]
+    fn info_translated_part_equal_to_the_previous_one_is_not_repeated() {
+        // textos diferentes na origem que viram o mesmo na tradução
+        let m = media(None, Some("Osaka"), Some("Osaka Prefecture"), Some("Japan"));
+        let info = Info::localized(
+            &m,
+            dict(&[("Osaka Prefecture", "Osaka"), ("Japan", "Japão")]),
+        );
+        assert_eq!(info.place.as_deref(), Some("Osaka, Japão"));
+
+        // a regra vale sem diferenciar maiúsculas, sobre o texto traduzido
+        let m = media(
+            None,
+            Some("New York"),
+            Some("New York State"),
+            Some("United States"),
+        );
+        let info = Info::localized(
+            &m,
+            dict(&[
+                ("New York", "Nova York"),
+                ("New York State", "nova york"),
+                ("United States", "Estados Unidos"),
+            ]),
+        );
+        assert_eq!(info.place.as_deref(), Some("Nova York, Estados Unidos"));
+
+        // iguais no inglês, a tradução vale para as duas e continua sem repetir
+        let m = media(None, Some("São Paulo"), Some("São Paulo"), Some("Brazil"));
+        let info = Info::localized(&m, dict(&[("Brazil", "Brasil")]));
+        assert_eq!(info.place.as_deref(), Some("São Paulo, Brasil"));
+    }
+
+    #[test]
+    fn info_lookup_uses_the_text_without_surrounding_spaces() {
+        let m = media(
+            Some("  Morretes: A charming town. "),
+            None,
+            None,
+            Some(" Japan "),
+        );
+        let info = Info::localized(
+            &m,
+            dict(&[
+                (
+                    "Morretes: A charming town.",
+                    "Morretes: Uma cidade charmosa.",
+                ),
+                ("Japan", "Japão"),
+            ]),
+        );
+        assert_eq!(info.place.as_deref(), Some("Japão"));
+        assert_eq!(info.text.as_deref(), Some("Uma cidade charmosa."));
     }
 
     #[test]

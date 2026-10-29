@@ -1,4 +1,4 @@
-//! Token de administrador nas rotas `/api/media`.
+//! Token de administrador nas rotas `/api/media` e `/api/translations`.
 
 use std::sync::Arc;
 

@@ -19,6 +19,7 @@ use decklive::catalog::Boot;
 use decklive::db::{Repo, connect_memory};
 use decklive::measure::{BoxFuture, DimensionProbe};
 use decklive::model::{Crops, NewMedia, Point, Variant, VariantKind};
+use decklive::pairing::ManualClock;
 use decklive::source::SourceClient;
 
 pub const TOKEN: &str = "test-token-0123456789abcdef-0123456789";
@@ -63,6 +64,8 @@ pub struct TestApp {
     pub repo: Repo,
     pub state: AppState,
     pub source: MockServer,
+    /// Relógio do envio de ajustes: só anda com `clock.advance`.
+    pub clock: Arc<ManualClock>,
 }
 
 impl TestApp {
@@ -83,6 +86,7 @@ impl TestApp {
 
     async fn on(repo: Repo, boot: Boot) -> Self {
         let source = MockServer::start().await;
+        let clock = Arc::new(ManualClock::new());
         let state = AppState::new(AppDeps {
             admin_token: TOKEN.into(),
             repo: repo.clone(),
@@ -90,6 +94,7 @@ impl TestApp {
             probe: Arc::new(FakeProbe),
             media_hosts: vec!["cdn.yanlucas.com".into()],
             boot,
+            clock: clock.clone(),
         })
         .await
         .unwrap();
@@ -98,6 +103,7 @@ impl TestApp {
             repo,
             state,
             source,
+            clock,
         }
     }
 

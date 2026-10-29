@@ -1,6 +1,7 @@
-//! Catálogo em memória: snapshot trocado a cada escrita e playlist memorizada (design D5).
+//! Catálogo em memória: snapshot trocado a cada escrita e playlist memorizada (design D5),
+//! com os textos por idioma (design D3 de `add-localized-descriptions`).
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -13,6 +14,7 @@ use crate::bucket::{self, Bucket, Orientation};
 use crate::crop;
 use crate::db::{CatalogState, Repo};
 use crate::info::Info;
+use crate::lang;
 use crate::model::{Media, Rect};
 use crate::variant;
 
@@ -56,17 +58,46 @@ fn base36(mut n: u128) -> String {
     String::from_utf8(out).expect("dígitos ASCII")
 }
 
-/// Fotos e versão do catálogo num instante, com as playlists já calculadas.
+/// Fotos, traduções e versão do catálogo num instante, com as playlists já calculadas.
 pub struct Snapshot {
     pub revision: i64,
     /// Na ordem de registro.
     pub media: Vec<Media>,
-    /// Local, título e resumo de cada foto, na ordem de `media`. Não dependem da tela,
-    /// então são calculados uma vez por versão, e não a cada faixa.
+    /// Idioma → texto da origem → tradução; as chaves são os idiomas disponíveis.
+    translations: BTreeMap<String, HashMap<String, String>>,
+    /// Idiomas com ao menos uma tradução, em ordem alfabética.
+    langs: Vec<String>,
+    /// Local, título e resumo de cada foto em inglês, na ordem de `media`. Não dependem
+    /// da tela, então são calculados uma vez por versão, e não a cada faixa.
     info: Vec<Info>,
+    /// Os mesmos textos em cada idioma de `langs`, na mesma ordem.
+    localized: Vec<Vec<Info>>,
     boot: Boot,
-    /// Uma resposta por faixa; some junto com o snapshot quando a versão muda.
-    memo: Mutex<HashMap<Bucket, Arc<Rendered>>>,
+    /// Uma resposta por faixa e idioma; some junto com o snapshot quando a versão muda.
+    memo: Mutex<Memo>,
+}
+
+/// Playlists memorizadas por faixa e idioma (`None` = inglês, senão a posição em `langs`).
+type Memo = HashMap<(Bucket, Option<usize>), Arc<Rendered>>;
+
+/// Papel de um texto da origem numa foto.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TextKind {
+    Description,
+    City,
+    State,
+    Country,
+}
+
+/// Texto do catálogo ainda sem tradução num idioma (`GET /api/translations/{lang}?missing=true`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Missing {
+    pub source: String,
+    /// O primeiro papel do texto na ordem `description`, `city`, `state`, `country`.
+    pub kind: TextKind,
+    /// Quantas fotos usam o texto, em qualquer papel.
+    pub photos: usize,
 }
 
 /// Playlist de uma faixa, serializada uma vez e comprimida sob demanda.
@@ -100,37 +131,118 @@ struct PlaylistBody<'a> {
 impl Snapshot {
     pub fn new(state: CatalogState, boot: Boot) -> Self {
         let info = state.media.iter().map(Info::of).collect();
+        let langs: Vec<String> = state.translations.keys().cloned().collect();
+        // poucos idiomas: todos calculados de uma vez, na troca do snapshot
+        let localized = state
+            .translations
+            .values()
+            .map(|dict| {
+                let lookup = |source: &str| dict.get(source).map(String::as_str);
+                state
+                    .media
+                    .iter()
+                    .map(|m| Info::localized(m, lookup))
+                    .collect()
+            })
+            .collect();
         Snapshot {
             revision: state.revision,
             media: state.media,
+            translations: state.translations,
+            langs,
             info,
+            localized,
             boot,
             memo: Mutex::new(HashMap::new()),
         }
     }
 
-    /// Playlist da faixa, calculada na primeira vez e depois servida da memória.
-    pub fn playlist(&self, screen: Bucket) -> Arc<Rendered> {
+    /// Idiomas com ao menos uma tradução, em ordem alfabética.
+    pub fn langs(&self) -> &[String] {
+        &self.langs
+    }
+
+    /// Idioma canônico de um pedido (`None` = inglês), entre os disponíveis.
+    pub fn canonical_lang(&self, requested: &str) -> Option<&str> {
+        lang::choose(requested, &self.langs)
+    }
+
+    /// Playlist da faixa num idioma disponível (`None` = inglês), calculada na primeira
+    /// vez e depois servida da memória. Idioma sem tradução sai em inglês.
+    pub fn playlist(&self, screen: Bucket, lang: Option<&str>) -> Arc<Rendered> {
+        let lang = lang.and_then(|tag| self.langs.binary_search_by(|l| l.as_str().cmp(tag)).ok());
         let mut memo = self.memo.lock().unwrap_or_else(|e| e.into_inner());
-        memo.entry(screen)
-            .or_insert_with(|| Arc::new(self.render(screen)))
+        memo.entry((screen, lang))
+            .or_insert_with(|| Arc::new(self.render(screen, lang)))
             .clone()
     }
 
-    fn render(&self, screen: Bucket) -> Rendered {
+    /// Textos do catálogo (descrições e partes do local) sem tradução no idioma, das
+    /// mais usadas para as menos usadas.
+    pub fn missing(&self, lang: &str) -> Vec<Missing> {
+        let dict = self.translations.get(lang);
+        // texto → (primeiro papel, fotos)
+        let mut found: HashMap<&str, (TextKind, usize)> = HashMap::new();
+        for m in &self.media {
+            let texts = [
+                (TextKind::Description, &m.description),
+                (TextKind::City, &m.city),
+                (TextKind::State, &m.state),
+                (TextKind::Country, &m.country),
+            ];
+            // o mesmo texto em dois papéis da mesma foto conta uma foto só
+            let mut seen: Vec<&str> = Vec::with_capacity(texts.len());
+            for (kind, text) in texts {
+                let Some(text) = text.as_deref().map(str::trim).filter(|t| !t.is_empty()) else {
+                    continue;
+                };
+                if dict.is_some_and(|d| d.contains_key(text)) {
+                    continue;
+                }
+                let entry = found.entry(text).or_insert((kind, 0));
+                entry.0 = entry.0.min(kind);
+                if !seen.contains(&text) {
+                    seen.push(text);
+                    entry.1 += 1;
+                }
+            }
+        }
+        let mut missing: Vec<Missing> = found
+            .into_iter()
+            .map(|(source, (kind, photos))| Missing {
+                source: source.to_string(),
+                kind,
+                photos,
+            })
+            .collect();
+        missing.sort_by(|a, b| {
+            b.photos
+                .cmp(&a.photos)
+                .then_with(|| a.source.cmp(&b.source))
+        });
+        missing
+    }
+
+    /// `lang` é a posição em `langs`; `None` é o inglês da origem.
+    fn render(&self, screen: Bucket, lang: Option<usize>) -> Rendered {
+        let (tag, info) = match lang {
+            Some(i) => (self.langs[i].as_str(), &self.localized[i]),
+            None => (lang::SOURCE_LANG, &self.info),
+        };
         let items = self
             .media
             .iter()
-            .zip(&self.info)
+            .zip(info)
             .filter_map(|(m, info)| item(m, info, screen))
             .collect();
         let body = serde_json::to_vec(&PlaylistBody { items }).expect("playlist sempre vira JSON");
         Rendered {
             etag: format!(
-                "\"r{}-{}x{}-{}\"",
+                "\"r{}-{}x{}-{}-{}\"",
                 self.revision,
                 screen.w,
                 screen.h,
+                tag,
                 self.boot.as_str()
             ),
             body: Bytes::from(body),
@@ -273,17 +385,20 @@ mod tests {
         let b = b.as_str();
 
         let snap = catalog.snapshot();
-        let first = snap.playlist(TV);
-        assert_eq!(first.etag, format!("\"r1-1920x1080-{b}\""));
-        assert!(Arc::ptr_eq(&first, &snap.playlist(TV)), "memorizada");
-        assert_eq!(snap.playlist(PHONE).etag, format!("\"r1-1182x2560-{b}\""));
+        let first = snap.playlist(TV, None);
+        assert_eq!(first.etag, format!("\"r1-1920x1080-en-{b}\""));
+        assert!(Arc::ptr_eq(&first, &snap.playlist(TV, None)), "memorizada");
+        assert_eq!(
+            snap.playlist(PHONE, None).etag,
+            format!("\"r1-1182x2560-en-{b}\"")
+        );
 
         repo.upsert(&sample("bbbbbbbbbbbbbbbbbbbbbbbb"))
             .await
             .unwrap();
         catalog.reload(&repo).await.unwrap();
-        let after_insert = catalog.snapshot().playlist(TV);
-        assert_eq!(after_insert.etag, format!("\"r2-1920x1080-{b}\""));
+        let after_insert = catalog.snapshot().playlist(TV, None);
+        assert_eq!(after_insert.etag, format!("\"r2-1920x1080-en-{b}\""));
         assert_ne!(after_insert.body, first.body);
 
         repo.remove(&["aaaaaaaaaaaaaaaaaaaaaaaa".into()])
@@ -291,8 +406,8 @@ mod tests {
             .unwrap();
         catalog.reload(&repo).await.unwrap();
         assert_eq!(
-            catalog.snapshot().playlist(TV).etag,
-            format!("\"r3-1920x1080-{b}\"")
+            catalog.snapshot().playlist(TV, None).etag,
+            format!("\"r3-1920x1080-en-{b}\"")
         );
     }
 
@@ -308,7 +423,7 @@ mod tests {
         let catalog = Catalog::load(&repo, boot()).await.unwrap();
 
         let body: serde_json::Value =
-            serde_json::from_slice(&catalog.snapshot().playlist(TV).body).unwrap();
+            serde_json::from_slice(&catalog.snapshot().playlist(TV, None).body).unwrap();
         let items = body["items"].as_array().unwrap();
         assert_eq!(items.len(), 2);
         assert_eq!(items[0]["id"], "aaaaaaaaaaaaaaaaaaaaaaaa");
@@ -352,10 +467,159 @@ mod tests {
         // as faixas usam os mesmos textos
         for screen in [TV, PHONE] {
             let body: serde_json::Value =
-                serde_json::from_slice(&snap.playlist(screen).body).unwrap();
+                serde_json::from_slice(&snap.playlist(screen, None).body).unwrap();
             assert_eq!(body["items"][0]["title"], "Sunset Dune");
             assert_eq!(body["items"][1]["text"], serde_json::Value::Null);
         }
+    }
+
+    fn pairs(items: &[(&str, &str)]) -> Vec<(String, String)> {
+        items
+            .iter()
+            .map(|(s, t)| (s.to_string(), t.to_string()))
+            .collect()
+    }
+
+    fn placed(id: &str, description: Option<&str>, place: [Option<&str>; 3]) -> NewMedia {
+        let [city, state, country] = place.map(|p| p.map(String::from));
+        NewMedia {
+            description: description.map(String::from),
+            city,
+            state,
+            country,
+            ..sample(id)
+        }
+    }
+
+    #[tokio::test]
+    async fn texts_and_memo_are_per_language() {
+        let repo = Repo::new(connect_memory().await.unwrap());
+        repo.upsert(&placed(
+            "aaaaaaaaaaaaaaaaaaaaaaaa",
+            Some("Sunset Dune: This formation is part of it. More."),
+            [Some("Osaka"), Some("Osaka"), Some("Japan")],
+        ))
+        .await
+        .unwrap();
+        repo.save_translations(
+            "pt-BR",
+            &pairs(&[
+                ("Japan", "Japão"),
+                (
+                    "Sunset Dune: This formation is part of it. More.",
+                    "Duna do Pôr do Sol: Esta formação faz parte dele. Mais.",
+                ),
+            ]),
+        )
+        .await
+        .unwrap();
+        repo.save_translations("es", &pairs(&[("Japan", "Japón")]))
+            .await
+            .unwrap();
+        let catalog = Catalog::load(&repo, boot()).await.unwrap();
+        let b = boot();
+        let b = b.as_str();
+        let snap = catalog.snapshot();
+        assert_eq!(snap.langs(), ["es", "pt-BR"]);
+        assert_eq!(snap.canonical_lang("pt-pt"), Some("pt-BR"));
+        assert_eq!(snap.canonical_lang("fr"), None);
+
+        let en = snap.playlist(TV, None);
+        let pt = snap.playlist(TV, Some("pt-BR"));
+        let es = snap.playlist(TV, Some("es"));
+        assert_eq!(en.etag, format!("\"r3-1920x1080-en-{b}\""));
+        assert_eq!(pt.etag, format!("\"r3-1920x1080-pt-BR-{b}\""));
+        assert_eq!(es.etag, format!("\"r3-1920x1080-es-{b}\""));
+        assert!(
+            Arc::ptr_eq(&pt, &snap.playlist(TV, Some("pt-BR"))),
+            "memorizada"
+        );
+        assert!(!Arc::ptr_eq(&pt, &en));
+
+        let item = |r: &Rendered| -> serde_json::Value {
+            serde_json::from_slice::<serde_json::Value>(&r.body).unwrap()["items"][0].clone()
+        };
+        assert_eq!(item(&en)["place"], "Osaka, Japan");
+        assert_eq!(item(&en)["title"], "Sunset Dune");
+        assert_eq!(item(&pt)["place"], "Osaka, Japão");
+        assert_eq!(item(&pt)["title"], "Duna do Pôr do Sol");
+        assert_eq!(item(&pt)["text"], "Esta formação faz parte dele.");
+        // tradução parcial: a descrição fica em inglês
+        assert_eq!(item(&es)["place"], "Osaka, Japón");
+        assert_eq!(item(&es)["title"], "Sunset Dune");
+        // o resto do item é o mesmo em todos os idiomas
+        for key in ["id", "src", "crop", "color", "orientation"] {
+            assert_eq!(item(&pt)[key], item(&en)[key], "{key}");
+        }
+
+        // idioma sem tradução (só se o chamador não canonizar): sai em inglês
+        assert_eq!(snap.playlist(TV, Some("fr")).body, en.body);
+    }
+
+    #[tokio::test]
+    async fn missing_lists_untranslated_texts_by_photo_count() {
+        let repo = Repo::new(connect_memory().await.unwrap());
+        let ids = [
+            "000000000000000000000001",
+            "000000000000000000000002",
+            "000000000000000000000003",
+            "000000000000000000000004",
+        ];
+        repo.upsert(&placed(
+            ids[0],
+            Some("Castle: Old."),
+            [Some("Osaka"), Some("Osaka"), Some("Japan")],
+        ))
+        .await
+        .unwrap();
+        repo.upsert(&placed(
+            ids[1],
+            Some("Castle: Old."),
+            [Some("Osaka"), None, Some("Japan")],
+        ))
+        .await
+        .unwrap();
+        repo.upsert(&placed(ids[2], None, [None, None, Some("Japan")]))
+            .await
+            .unwrap();
+        // "Brazil" como estado e como país; sem descrição
+        repo.upsert(&placed(
+            ids[3],
+            None,
+            [None, Some("Brazil"), Some("Brazil")],
+        ))
+        .await
+        .unwrap();
+        repo.save_translations("pt-BR", &pairs(&[("Castle: Old.", "Castelo: Antigo.")]))
+            .await
+            .unwrap();
+        let catalog = Catalog::load(&repo, boot()).await.unwrap();
+        let snap = catalog.snapshot();
+
+        let missing = |kind, source: &str, photos| Missing {
+            source: source.into(),
+            kind,
+            photos,
+        };
+        assert_eq!(
+            snap.missing("pt-BR"),
+            [
+                missing(TextKind::Country, "Japan", 3),
+                // cidade e estado na mesma foto contam uma foto só
+                missing(TextKind::City, "Osaka", 2),
+                missing(TextKind::State, "Brazil", 1),
+            ]
+        );
+        // em outro idioma, a descrição também falta; empate fica em ordem do texto
+        assert_eq!(
+            snap.missing("es"),
+            [
+                missing(TextKind::Country, "Japan", 3),
+                missing(TextKind::Description, "Castle: Old.", 2),
+                missing(TextKind::City, "Osaka", 2),
+                missing(TextKind::State, "Brazil", 1),
+            ]
+        );
     }
 
     #[test]
@@ -364,11 +628,11 @@ mod tests {
         let snap = Snapshot::new(
             CatalogState {
                 revision: 7,
-                media: Vec::new(),
+                ..Default::default()
             },
             boot(),
         );
-        let r = snap.playlist(TV);
+        let r = snap.playlist(TV, None);
         assert_eq!(&r.body[..], br#"{"items":[]}"#);
         let mut out = Vec::new();
         flate2::read::GzDecoder::new(&r.gzip()[..])

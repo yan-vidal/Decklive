@@ -254,7 +254,7 @@ async fn memoized_playlist_is_reused_between_requests() {
 
     let first = t.get("/api/playlist?w=1920&h=1080").await;
     let snapshot = t.state.catalog().snapshot();
-    let rendered = snapshot.playlist(tv);
+    let rendered = snapshot.playlist(tv, None);
     let second = t.get("/api/playlist?w=1920&h=1080").await;
     assert_eq!(first.body, second.body);
     assert_eq!(items(&second)[0]["title"], "Sunset Dune");
@@ -262,7 +262,7 @@ async fn memoized_playlist_is_reused_between_requests() {
     assert!(Arc::ptr_eq(&snapshot, &t.state.catalog().snapshot()));
     assert!(Arc::ptr_eq(
         &rendered,
-        &t.state.catalog().snapshot().playlist(tv)
+        &t.state.catalog().snapshot().playlist(tv, None)
     ));
 }
 
@@ -356,7 +356,7 @@ async fn cache_headers_and_etag() {
     let revision = t.repo.revision().await.unwrap();
     assert_eq!(
         reply.header("etag"),
-        Some(format!("\"r{revision}-1920x1080-mubbs7i8\"").as_str())
+        Some(format!("\"r{revision}-1920x1080-en-mubbs7i8\"").as_str())
     );
 }
 
@@ -373,8 +373,8 @@ async fn restart_changes_the_etag_for_the_same_catalog() {
     let new = after.header("etag").unwrap();
     assert_ne!(old, new);
     let revision = first.repo.revision().await.unwrap();
-    assert!(old.starts_with(&format!("\"r{revision}-1920x1080-")));
-    assert!(new.starts_with(&format!("\"r{revision}-1920x1080-")));
+    assert!(old.starts_with(&format!("\"r{revision}-1920x1080-en-")));
+    assert!(new.starts_with(&format!("\"r{revision}-1920x1080-en-")));
 
     // o ETag guardado antes do reinício não vale mais: resposta completa
     let reply = second
@@ -445,6 +445,254 @@ async fn catalog_change_gives_200_with_new_etag() {
     assert_eq!(after_remove.status, StatusCode::OK);
     assert_ne!(after_remove.header("etag"), Some(etag2.as_str()));
     assert_eq!(items(&after_remove).len(), 3);
+}
+
+// --- Idioma da playlist ---
+
+const SUNSET: &str = "Sunset Dune: This natural formation is part of the dynamic dune system \
+    along the northeastern coast of Brazil. Constantly shaped by the wind…";
+const SUNSET_PT: &str = "Duna do Pôr do Sol: Esta formação natural faz parte do sistema \
+    dinâmico de dunas da costa nordeste do Brasil. Moldada constantemente pelo vento…";
+
+/// Uma foto de "Osaka, Japan" com a descrição da duna, e as traduções dadas em pt-BR.
+async fn translated(pairs: &[(&str, &str)]) -> TestApp {
+    let t = TestApp::with_boot(boot_at(1_790_000_000_000)).await;
+    let mut m = synthetic("aaaaaaaaaaaaaaaaaaaaaaaa", 2944, 1839, Crops::default());
+    m.description = Some(SUNSET.into());
+    m.city = Some("Osaka".into());
+    m.state = Some("Osaka".into());
+    m.country = Some("Japan".into());
+    t.insert(m).await;
+    if !pairs.is_empty() {
+        let items: Vec<Value> = pairs
+            .iter()
+            .map(|(s, t)| json!({"source": s, "text": t}))
+            .collect();
+        let reply = t
+            .admin(
+                axum::http::Method::PUT,
+                "/api/translations/pt-BR",
+                Some(json!({ "items": items })),
+            )
+            .await;
+        assert_eq!(reply.status, StatusCode::OK, "{}", reply.json());
+    }
+    t
+}
+
+#[tokio::test]
+async fn existing_translation() {
+    let t = translated(&[(SUNSET, SUNSET_PT)]).await;
+    let reply = t.get("/api/playlist?w=1920&h=1080&lang=pt-BR").await;
+    assert_eq!(reply.status, StatusCode::OK);
+    let item = &items(&reply)[0];
+    assert_eq!(item["title"], "Duna do Pôr do Sol");
+    assert!(
+        item["text"]
+            .as_str()
+            .unwrap()
+            .starts_with("Esta formação natural"),
+        "{item}"
+    );
+    // Japan sem tradução: o local fica em inglês
+    assert_eq!(item["place"], "Osaka, Japan");
+
+    // sem lang, o inglês da origem
+    let en = &items(&t.get("/api/playlist?w=1920&h=1080").await)[0];
+    assert_eq!(en["title"], "Sunset Dune");
+    assert_eq!(en["src"], item["src"]);
+}
+
+#[tokio::test]
+async fn partial_translation() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    let item = &items(&t.get("/api/playlist?w=1920&h=1080&lang=pt-BR").await)[0];
+    assert_eq!(item["place"], "Osaka, Japão");
+    assert_eq!(item["title"], "Sunset Dune");
+}
+
+#[tokio::test]
+async fn same_language_other_region() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    for (uri, location) in [
+        (
+            "/api/playlist?w=1920&h=1080&lang=pt-PT",
+            "/api/playlist?w=1920&h=1080&lang=pt-BR",
+        ),
+        (
+            "/api/playlist?w=1920&h=1080&lang=pt",
+            "/api/playlist?w=1920&h=1080&lang=pt-BR",
+        ),
+        // mesma etiqueta, outra caixa
+        (
+            "/api/playlist?w=1920&h=1080&lang=pt-br",
+            "/api/playlist?w=1920&h=1080&lang=pt-BR",
+        ),
+        // ordem dos parâmetros
+        (
+            "/api/playlist?lang=pt-BR&w=1920&h=1080",
+            "/api/playlist?w=1920&h=1080&lang=pt-BR",
+        ),
+    ] {
+        let reply = t.get(uri).await;
+        assert_eq!(reply.status, StatusCode::PERMANENT_REDIRECT, "{uri}");
+        assert_eq!(reply.header("location"), Some(location), "{uri}");
+    }
+}
+
+#[tokio::test]
+async fn language_without_translation() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    let reply = t.get("/api/playlist?w=1920&h=1080&lang=fr").await;
+    assert_eq!(reply.status, StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(
+        reply.header("location"),
+        Some("/api/playlist?w=1920&h=1080")
+    );
+    // sem nenhuma tradução no banco, pt-BR também vai para o inglês
+    let empty = translated(&[]).await;
+    let reply = empty.get("/api/playlist?w=1920&h=1080&lang=pt-BR").await;
+    assert_eq!(reply.status, StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(
+        reply.header("location"),
+        Some("/api/playlist?w=1920&h=1080")
+    );
+}
+
+#[tokio::test]
+async fn english_requested() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    for lang in ["en", "EN", "en-US"] {
+        let reply = t
+            .get(&format!("/api/playlist?w=1920&h=1080&lang={lang}"))
+            .await;
+        assert_eq!(reply.status, StatusCode::PERMANENT_REDIRECT, "{lang}");
+        assert_eq!(
+            reply.header("location"),
+            Some("/api/playlist?w=1920&h=1080"),
+            "{lang}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn screen_and_language_are_canonized_in_one_redirect() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    let reply = t.get("/api/playlist?w=1170&h=2532&lang=pt-PT").await;
+    assert_eq!(reply.status, StatusCode::PERMANENT_REDIRECT);
+    let location = reply.header("location").unwrap();
+    assert_eq!(location, "/api/playlist?w=1182&h=2560&lang=pt-BR");
+    assert_eq!(t.get(location).await.status, StatusCode::OK);
+
+    let reply = t.get("/api/playlist?w=1170&h=2532&lang=en").await;
+    assert_eq!(
+        reply.header("location"),
+        Some("/api/playlist?w=1182&h=2560")
+    );
+    // o redirecionamento por idioma depende das traduções: cache curto
+    assert_eq!(reply.header("cache-control"), Some(CACHE));
+    // só a faixa: o redirecionamento continua com cache longo
+    let reply = t.get("/api/playlist?w=1170&h=2532").await;
+    assert_eq!(reply.header("cache-control"), Some("public, max-age=86400"));
+}
+
+#[tokio::test]
+async fn invalid_language_is_400() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    for lang in ["", "pt_BR", "português", "p", "pt-BR-x-y", "pt%2DBR", "*"] {
+        let uri = format!("/api/playlist?w=1920&h=1080&lang={lang}");
+        let reply = t.get(&uri).await;
+        assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{uri}");
+        assert_eq!(reply.json()["error"], "bad_request");
+    }
+    // a faixa inválida continua dando 400 antes do idioma
+    let reply = t.get("/api/playlist?w=0&h=1080&lang=pt-BR").await;
+    assert_eq!(reply.status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn etag_and_memo_are_per_language() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    let revision = t.repo.revision().await.unwrap();
+    let pt = t.get("/api/playlist?w=1920&h=1080&lang=pt-BR").await;
+    let en = t.get("/api/playlist?w=1920&h=1080").await;
+    assert_eq!(
+        pt.header("etag"),
+        Some(format!("\"r{revision}-1920x1080-pt-BR-mubbs7i8\"").as_str())
+    );
+    assert_eq!(
+        en.header("etag"),
+        Some(format!("\"r{revision}-1920x1080-en-mubbs7i8\"").as_str())
+    );
+    assert_eq!(pt.header("cache-control"), Some(CACHE));
+    assert_ne!(pt.body, en.body);
+
+    // memorizada por (versão, faixa, idioma)
+    let tv = Bucket { w: 1920, h: 1080 };
+    let snapshot = t.state.catalog().snapshot();
+    let rendered = snapshot.playlist(tv, Some("pt-BR"));
+    let again = t.get("/api/playlist?w=1920&h=1080&lang=pt-BR").await;
+    assert_eq!(again.body, pt.body);
+    assert!(Arc::ptr_eq(
+        &rendered,
+        &t.state.catalog().snapshot().playlist(tv, Some("pt-BR"))
+    ));
+    assert!(!Arc::ptr_eq(&rendered, &snapshot.playlist(tv, None)));
+
+    // 304 com o ETag do idioma; o do inglês não vale para pt-BR
+    let conditional = |etag: &str| {
+        Request::get("/api/playlist?w=1920&h=1080&lang=pt-BR")
+            .header("if-none-match", etag)
+            .body(Body::empty())
+            .unwrap()
+    };
+    let etag = pt.header("etag").unwrap();
+    assert_eq!(
+        t.send(conditional(etag)).await.status,
+        StatusCode::NOT_MODIFIED
+    );
+    let en_etag = en.header("etag").unwrap();
+    assert_eq!(t.send(conditional(en_etag)).await.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn new_translation_gives_200_with_new_etag() {
+    let t = translated(&[("Japan", "Japão")]).await;
+    let first = t.get("/api/playlist?w=1920&h=1080&lang=pt-BR").await;
+    let etag = first.header("etag").unwrap().to_string();
+
+    let reply = t
+        .admin(
+            axum::http::Method::PUT,
+            "/api/translations/pt-BR",
+            Some(json!({"items": [{"source": SUNSET, "text": SUNSET_PT}]})),
+        )
+        .await;
+    assert_eq!(reply.status, StatusCode::OK);
+    let reply = t
+        .send(
+            Request::get("/api/playlist?w=1920&h=1080&lang=pt-BR")
+                .header("if-none-match", etag.as_str())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+    assert_eq!(reply.status, StatusCode::OK);
+    assert_ne!(reply.header("etag"), Some(etag.as_str()));
+    assert_eq!(items(&reply)[0]["title"], "Duna do Pôr do Sol");
+
+    // remover também muda a versão
+    let etag = reply.header("etag").unwrap().to_string();
+    t.admin(
+        axum::http::Method::DELETE,
+        "/api/translations/pt-BR",
+        Some(json!({"sources": [SUNSET]})),
+    )
+    .await;
+    let reply = t.get("/api/playlist?w=1920&h=1080&lang=pt-BR").await;
+    assert_eq!(reply.status, StatusCode::OK);
+    assert_ne!(reply.header("etag"), Some(etag.as_str()));
+    assert_eq!(items(&reply)[0]["title"], "Sunset Dune");
 }
 
 // --- CORS e compressão ---

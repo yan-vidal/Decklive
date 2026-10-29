@@ -10,6 +10,7 @@ use decklive::catalog::Boot;
 use decklive::config::Config;
 use decklive::db::{self, Repo};
 use decklive::measure::HttpProbe;
+use decklive::pairing::SystemClock;
 use decklive::source::{DEFAULT_TIMEOUT, SourceClient};
 
 #[tokio::main]
@@ -53,6 +54,7 @@ async fn run(config: Config, boot: Boot) -> Result<(), Box<dyn std::error::Error
         probe,
         media_hosts: config.media_hosts.clone(),
         boot: boot.clone(),
+        clock: Arc::new(SystemClock),
     })
     .await?;
     let snapshot = state.catalog().snapshot();

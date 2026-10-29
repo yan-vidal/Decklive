@@ -4,9 +4,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::http::{Method, header};
 use axum::middleware::from_fn_with_state;
-use axum::routing::{any, get};
+use axum::routing::{any, get, post};
 
 use crate::auth::{AdminToken, require_admin};
 use crate::catalog::{Boot, Catalog};
@@ -14,6 +15,7 @@ use crate::db::{Removal, Repo};
 use crate::error::ApiError;
 use crate::measure::DimensionProbe;
 use crate::model::{Media, NewMedia};
+use crate::pairing::{Clock, PairingStore};
 use crate::routes;
 use crate::source::SourceClient;
 use tower_http::compression::CompressionLayer;
@@ -29,6 +31,8 @@ pub struct AppDeps {
     pub media_hosts: Vec<String>,
     /// Instante de início do processo, que entra no `ETag` da playlist.
     pub boot: Boot,
+    /// Relógio do envio de ajustes; os testes passam um relógio manual.
+    pub clock: Arc<dyn Clock>,
 }
 
 #[derive(Clone)]
@@ -43,6 +47,8 @@ pub(crate) struct Inner {
     pub probe: Arc<dyn DimensionProbe>,
     pub media_hosts: Vec<String>,
     pub catalog: Catalog,
+    /// Pacotes de ajustes à espera de outra tela, só na memória.
+    pub pairing: PairingStore,
     /// Uma escrita por vez, com a troca do snapshot, para nunca guardar um snapshot velho.
     write_lock: tokio::sync::Mutex<()>,
 }
@@ -59,6 +65,7 @@ impl AppState {
                 probe: deps.probe,
                 media_hosts: deps.media_hosts,
                 catalog,
+                pairing: PairingStore::new(deps.clock),
                 write_lock: tokio::sync::Mutex::new(()),
             }),
         })
@@ -66,6 +73,10 @@ impl AppState {
 
     pub fn catalog(&self) -> &Catalog {
         &self.inner.catalog
+    }
+
+    pub fn pairing(&self) -> &PairingStore {
+        &self.inner.pairing
     }
 
     pub(crate) async fn upsert(&self, media: &NewMedia) -> Result<(Media, bool), ApiError> {
@@ -78,6 +89,30 @@ impl AppState {
     pub(crate) async fn remove(&self, ids: &[String]) -> Result<Removal, ApiError> {
         let _guard = self.inner.write_lock.lock().await;
         let removal = self.inner.repo.remove(ids).await?;
+        if !removal.removed.is_empty() {
+            self.reload().await;
+        }
+        Ok(removal)
+    }
+
+    pub(crate) async fn save_translations(
+        &self,
+        lang: &str,
+        items: &[(String, String)],
+    ) -> Result<usize, ApiError> {
+        let _guard = self.inner.write_lock.lock().await;
+        let saved = self.inner.repo.save_translations(lang, items).await?;
+        self.reload().await;
+        Ok(saved)
+    }
+
+    pub(crate) async fn remove_translations(
+        &self,
+        lang: &str,
+        sources: &[String],
+    ) -> Result<Removal, ApiError> {
+        let _guard = self.inner.write_lock.lock().await;
+        let removal = self.inner.repo.remove_translations(lang, sources).await?;
         if !removal.removed.is_empty() {
             self.reload().await;
         }
@@ -101,12 +136,20 @@ pub fn app(state: AppState, web_dir: &Path) -> Router {
 
 /// Monta o roteador da API.
 pub fn router(state: AppState) -> Router {
-    let media = Router::new()
+    // Rotas de administrador: catálogo e traduções, atrás do token e sem CORS.
+    let admin = Router::new()
         .route(
             "/api/media",
             get(routes::media::list)
                 .post(routes::media::register)
                 .delete(routes::media::remove),
+        )
+        .route(
+            "/api/translations/{lang}",
+            get(routes::translations::list)
+                .put(routes::translations::save)
+                .delete(routes::translations::remove)
+                .layer(DefaultBodyLimit::max(routes::translations::MAX_BODY)),
         )
         .route_layer(from_fn_with_state(
             state.inner.admin_token.clone(),
@@ -125,9 +168,19 @@ pub fn router(state: AppState) -> Router {
         .route("/api/playlist", get(routes::playlist::get))
         .layer(cors);
 
+    // Envio de ajustes: público, sem CORS (o player é da mesma origem) e sem compressão
+    // (os pacotes são pequenos e passam uma vez só).
+    let pairing = Router::new()
+        .route(
+            "/api/pairing",
+            post(routes::pairing::create).layer(DefaultBodyLimit::max(crate::pairing::MAX_BODY)),
+        )
+        .route("/api/pairing/{code}", get(routes::pairing::take));
+
     Router::new()
-        .merge(media)
+        .merge(admin)
         .merge(playlist)
+        .merge(pairing)
         .route("/api/{*rest}", any(api_not_found))
         .with_state(state)
 }

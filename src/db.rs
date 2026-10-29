@@ -1,5 +1,6 @@
 //! SQLite: conexão, migrações e repositório do catálogo (design D3).
 
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -51,11 +52,21 @@ async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-/// Estado do catálogo lido de uma vez: versão e fotos na ordem de registro.
-#[derive(Debug, Clone, PartialEq)]
+/// Estado do catálogo lido de uma vez: versão, fotos na ordem de registro e traduções.
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct CatalogState {
     pub revision: i64,
     pub media: Vec<Media>,
+    /// Idioma → texto da origem → tradução. As chaves são os idiomas disponíveis.
+    pub translations: BTreeMap<String, HashMap<String, String>>,
+}
+
+/// Uma tradução gravada (`GET /api/translations/{lang}`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Translation {
+    pub source: String,
+    pub text: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,12 +182,101 @@ impl Repo {
         let rows = sqlx::query(sqlx::AssertSqlSafe(sql))
             .fetch_all(&mut *tx)
             .await?;
+        let translated: Vec<(String, String, String)> =
+            sqlx::query_as("SELECT lang, source, text FROM translation")
+                .fetch_all(&mut *tx)
+                .await?;
         tx.commit().await?;
         let media = rows
             .iter()
             .map(media_from_row)
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(CatalogState { revision, media })
+        let mut translations: BTreeMap<String, HashMap<String, String>> = BTreeMap::new();
+        for (lang, source, text) in translated {
+            translations.entry(lang).or_default().insert(source, text);
+        }
+        Ok(CatalogState {
+            revision,
+            media,
+            translations,
+        })
+    }
+
+    /// Grava ou substitui as traduções de um idioma (`lang` já normalizado), com a
+    /// versão do catálogo subindo na mesma transação. Devolve quantas foram gravadas.
+    pub async fn save_translations(
+        &self,
+        lang: &str,
+        items: &[(String, String)],
+    ) -> Result<usize, sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+        bump_revision(&mut tx).await?;
+        let sql = format!(
+            "INSERT INTO translation (lang, source, text, updated_at) VALUES (?, ?, ?, {NOW}) \
+             ON CONFLICT(lang, source) DO UPDATE SET \
+                text = excluded.text, updated_at = excluded.updated_at"
+        );
+        for (source, text) in items {
+            sqlx::query(sqlx::AssertSqlSafe(sql.as_str()))
+                .bind(lang)
+                .bind(source)
+                .bind(text)
+                .execute(&mut *tx)
+                .await?;
+        }
+        tx.commit().await?;
+        Ok(items.len())
+    }
+
+    /// Remove traduções de um idioma. A versão só sobe se alguma saiu.
+    pub async fn remove_translations(
+        &self,
+        lang: &str,
+        sources: &[String],
+    ) -> Result<Removal, sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+        bump_revision(&mut tx).await?;
+        let mut removal = Removal {
+            removed: Vec::new(),
+            not_found: Vec::new(),
+        };
+        for source in sources {
+            let gone: Option<String> = sqlx::query_scalar(
+                "DELETE FROM translation WHERE lang = ? AND source = ? RETURNING source",
+            )
+            .bind(lang)
+            .bind(source)
+            .fetch_optional(&mut *tx)
+            .await?;
+            match gone {
+                Some(source) => removal.removed.push(source),
+                None => removal.not_found.push(source.clone()),
+            }
+        }
+        if removal.removed.is_empty() {
+            tx.rollback().await?;
+        } else {
+            tx.commit().await?;
+        }
+        Ok(removal)
+    }
+
+    /// Traduções de um idioma, em ordem do texto da origem.
+    pub async fn translations(&self, lang: &str) -> Result<Vec<Translation>, sqlx::Error> {
+        let rows: Vec<(String, String, String)> = sqlx::query_as(
+            "SELECT source, text, updated_at FROM translation WHERE lang = ? ORDER BY source",
+        )
+        .bind(lang)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(source, text, updated_at)| Translation {
+                source,
+                text,
+                updated_at,
+            })
+            .collect())
     }
 
     pub async fn revision(&self) -> Result<i64, sqlx::Error> {
@@ -362,7 +462,8 @@ mod tests {
                 .fetch_all(repo.pool())
                 .await
                 .unwrap();
-        assert_eq!(versions, [1, 2]);
+        // as migrações seguintes também rodam; aqui importa que a 0002 rodou
+        assert_eq!(versions[..2], [1, 2]);
 
         let state = repo.load().await.unwrap();
         assert_eq!(state.revision, 1);
@@ -454,6 +555,162 @@ mod tests {
         assert_eq!(m.variants, sample(ids[1]).variants);
         assert_eq!(m.focus, Point::CENTER);
         assert_eq!(m.crops, Crops::default());
+    }
+
+    fn pairs(items: &[(&str, &str)]) -> Vec<(String, String)> {
+        items
+            .iter()
+            .map(|(s, t)| (s.to_string(), t.to_string()))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn translations_are_saved_replaced_and_removed_with_the_revision() {
+        let repo = Repo::new(connect_memory().await.unwrap());
+        repo.upsert(&with_place("aaaaaaaaaaaaaaaaaaaaaaaa"))
+            .await
+            .unwrap();
+        assert_eq!(repo.revision().await.unwrap(), 1);
+
+        let saved = repo
+            .save_translations("pt-BR", &pairs(&[("Brazil", "Brasil"), ("Japan", "Japão")]))
+            .await
+            .unwrap();
+        assert_eq!(saved, 2);
+        assert_eq!(repo.revision().await.unwrap(), 2);
+        repo.save_translations("es", &pairs(&[("Japan", "Japón")]))
+            .await
+            .unwrap();
+        assert_eq!(repo.revision().await.unwrap(), 3);
+
+        let list = repo.translations("pt-BR").await.unwrap();
+        let got: Vec<(&str, &str)> = list
+            .iter()
+            .map(|t| (t.source.as_str(), t.text.as_str()))
+            .collect();
+        assert_eq!(got, [("Brazil", "Brasil"), ("Japan", "Japão")]);
+        assert!(list[0].updated_at.ends_with('Z'), "{}", list[0].updated_at);
+
+        // a leitura do catálogo traz as traduções junto, por idioma
+        let state = repo.load().await.unwrap();
+        assert_eq!(state.revision, 3);
+        let langs: Vec<&str> = state.translations.keys().map(String::as_str).collect();
+        assert_eq!(langs, ["es", "pt-BR"]);
+        assert_eq!(state.translations["pt-BR"]["Japan"], "Japão");
+        assert_eq!(state.translations["es"]["Japan"], "Japón");
+
+        // gravar de novo substitui o texto e sobe a versão
+        repo.save_translations("pt-BR", &pairs(&[("Japan", "Japão!")]))
+            .await
+            .unwrap();
+        assert_eq!(repo.revision().await.unwrap(), 4);
+        assert_eq!(
+            repo.load().await.unwrap().translations["pt-BR"]["Japan"],
+            "Japão!"
+        );
+
+        // remover: separa removidos e inexistentes; só o idioma pedido sai
+        let removal = repo
+            .remove_translations("pt-BR", &["Japan".into(), "Osaka".into()])
+            .await
+            .unwrap();
+        assert_eq!(removal.removed, ["Japan"]);
+        assert_eq!(removal.not_found, ["Osaka"]);
+        assert_eq!(repo.revision().await.unwrap(), 5);
+        let state = repo.load().await.unwrap();
+        assert!(!state.translations["pt-BR"].contains_key("Japan"));
+        assert_eq!(state.translations["es"]["Japan"], "Japón");
+
+        // nada removido: a versão não muda
+        let removal = repo
+            .remove_translations("pt-BR", &["Osaka".into()])
+            .await
+            .unwrap();
+        assert!(removal.removed.is_empty());
+        assert_eq!(repo.revision().await.unwrap(), 5);
+
+        // sem traduções, o idioma deixa de estar disponível
+        repo.remove_translations("es", &["Japan".into()])
+            .await
+            .unwrap();
+        let langs: Vec<String> = repo
+            .load()
+            .await
+            .unwrap()
+            .translations
+            .into_keys()
+            .collect();
+        assert_eq!(langs, ["pt-BR"]);
+    }
+
+    #[tokio::test]
+    async fn migration_0003_keeps_photos_registered_before_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("decklive.db");
+        let id = "66d312a4124fa13304b01ea7";
+        let variants = to_json(&sample(id).variants).unwrap();
+
+        // banco como a versão anterior o deixava: migrações 0001 e 0002, com uma foto
+        {
+            let options = SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true)
+                .journal_mode(SqliteJournalMode::Wal);
+            let pool = SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect_with(options)
+                .await
+                .unwrap();
+            sqlx::migrate!("./migrations")
+                .run_to(2, &pool)
+                .await
+                .unwrap();
+            sqlx::query(
+                "INSERT INTO media (id, version, description, city, state, country, \
+                    taken_at, color, variants, created_at, updated_at) \
+                 VALUES (?, 'V1', 'Duna', 'Jericoacoara', 'Ceará', 'Brazil', NULL, \
+                    '#c79442', ?, '2026-10-28T12:00:00.000Z', '2026-10-28T12:00:00.000Z')",
+            )
+            .bind(id)
+            .bind(&variants)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query("UPDATE catalog_meta SET value = '7' WHERE key = 'revision'")
+                .execute(&pool)
+                .await
+                .unwrap();
+            pool.close().await;
+        }
+
+        // a versão nova aplica a 0003 ao abrir
+        let repo = Repo::new(connect(&path).await.unwrap());
+        let versions: Vec<i64> =
+            sqlx::query_scalar("SELECT version FROM _sqlx_migrations ORDER BY version")
+                .fetch_all(repo.pool())
+                .await
+                .unwrap();
+        assert_eq!(versions, [1, 2, 3]);
+
+        let state = repo.load().await.unwrap();
+        assert_eq!(state.revision, 7);
+        assert_eq!(state.media.len(), 1);
+        let m = &state.media[0];
+        assert_eq!(
+            (m.id.as_str(), m.description.as_deref()),
+            (id, Some("Duna"))
+        );
+        assert_eq!(m.city.as_deref(), Some("Jericoacoara"));
+        assert_eq!(m.variants, sample(id).variants);
+        assert!(state.translations.is_empty());
+
+        // a tabela nova já aceita traduções
+        repo.save_translations("pt-BR", &pairs(&[("Brazil", "Brasil")]))
+            .await
+            .unwrap();
+        let state = repo.load().await.unwrap();
+        assert_eq!(state.revision, 8);
+        assert_eq!(state.translations["pt-BR"]["Brazil"], "Brasil");
     }
 
     #[tokio::test]

@@ -10,6 +10,8 @@ import {
   motionEnds,
   nextPlan,
   originOf,
+  pauseMove,
+  progressOf,
   resolveMode,
   transformOf,
   visibleItems,
@@ -315,5 +317,34 @@ describe('movimento', () => {
     const origin = parseOrigin(originOf(box, vw, vh));
     const k = (1.1 * (MOTION_ZOOM - 1)) / 2;
     expect(() => expectCovers(box, vw, vh, origin, { x: k * vw, y: 0, s: MOTION_ZOOM }, 'teste')).toThrow(/borda vazia/);
+  });
+});
+
+describe('pausa do modo de edição', () => {
+  const plan: Plan = { zoomIn: true, diagonal: 0 };
+
+  it('pauseMove guarda o progresso de agora e o tempo que falta', () => {
+    const m = { plan, p0: 0, t0: 1000, ms: 30600 };
+    const paused = pauseMove(m, 1000 + 10200);
+    expect(paused.p0).toBeCloseTo(1 / 3, 9);
+    expect(paused.ms).toBe(20400);
+    // Parada: o progresso guardado não muda enquanto o t0 não muda.
+    expect(paused.plan).toBe(plan);
+  });
+
+  it('retomar depois de 1 min continua de onde parou e termina no tempo que faltava', () => {
+    const m = { plan, p0: 0, t0: 0, ms: 30600 };
+    const paused = pauseMove(m, 10200);
+    const resumedAt = 10200 + 60000;
+    const resumed = Object.assign({}, paused, { t0: resumedAt });
+    expect(progressOf(resumed, resumedAt)).toBeCloseTo(1 / 3, 9);
+    expect(progressOf(resumed, resumedAt + 10200)).toBeCloseTo(2 / 3, 9);
+    expect(progressOf(resumed, resumedAt + 20400)).toBe(1);
+  });
+
+  it('movimento já no fim fica no fim', () => {
+    const paused = pauseMove({ plan, p0: 0, t0: 0, ms: 1000 }, 5000);
+    expect(paused.p0).toBe(1);
+    expect(paused.ms).toBe(0);
   });
 });
