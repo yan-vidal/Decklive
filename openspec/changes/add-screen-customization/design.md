@@ -146,4 +146,4 @@ Tentar 31⁶ códigos dentro de 10 minutos esbarra no limite do nginx (`soft_lim
 ## Migration Plan
 
 - **Dados:** nada muda no banco. Os ajustes antigos continuam válidos, e as chaves novas começam vazias, o que dá o layout padrão e nenhuma área.
-- **Deploy:** imagem nova no servidor de casa, com o mesmo procedimento.
+- **Deploy:** imagem nova no servidor, com o mesmo procedimento.

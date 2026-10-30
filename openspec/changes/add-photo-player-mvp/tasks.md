@@ -47,8 +47,8 @@
 ## 6. Implantação
 
 - [x] 6.1 Escrever o `Dockerfile` multiestágio e o `docker-compose.yml` do design D12; verificar com `docker build` e `docker compose up` local respondendo `GET /api/playlist?w=1920&h=1080`
-- [x] 6.2 Documentar no `README.md` as variáveis de ambiente, a implantação no servidor de casa e as Cache Rules recomendadas para `cdn.yanlucas.com`; verificar que os comandos do README sobem o serviço do zero numa pasta limpa
-- [x] 6.3 Com a confirmação do Yan, subir a stack em `/opt/home-server/websites/decklive` (esquema dos sites), configurar o nginx e o DNS de `decklive.yanlucas.com`; verificar com `curl https://decklive.yanlucas.com/api/playlist?w=1920&h=1080`
+- [x] 6.2 Documentar no `README.md` as variáveis de ambiente, a implantação num servidor e as Cache Rules recomendadas para `cdn.yanlucas.com`; verificar que os comandos do README sobem o serviço do zero numa pasta limpa
+- [x] 6.3 Com a confirmação do Yan, subir a stack no servidor, configurar o nginx e o DNS do subdomínio; verificar com `curl` em `/api/playlist?w=1920&h=1080` pelo endereço público
 
 ## 7. Conferência de ponta a ponta
 

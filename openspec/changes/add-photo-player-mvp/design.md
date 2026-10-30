@@ -4,11 +4,11 @@
 
 O porquê está em `proposal.md`; o comportamento, nas specs `media-catalog`, `playlist` e `web-player`. Fatos medidos em 2026-10-28 que moldam o como:
 
-- **Fonte (`https://api.yanlucas.com`)**: Express atrás de nginx no servidor de casa, sem proxy da Cloudflare (responde `server: nginx`). `GET /images` devolve `{images, total}` com as URLs já completas. Não existe busca por id: com `?id=<id>&limit=1`, a API devolve a página do começo até o item mais 10 (≈48 KB). Com id desconhecido ou malformado, responde `500` com o texto `Erro ao listar imagens`, igual a qualquer outra falha.
+- **Fonte (`https://api.yanlucas.com`)**: Express atrás de nginx, sem proxy da Cloudflare (responde `server: nginx`). `GET /images` devolve `{images, total}` com as URLs já completas. Não existe busca por id: com `?id=<id>&limit=1`, a API devolve a página do começo até o item mais 10 (≈48 KB). Com id desconhecido ou malformado, responde `500` com o texto `Erro ao listar imagens`, igual a qualquer outra falha.
 - **Documento da foto**: `images[]` (versões editadas, com `versionName`, ex.: `V1`) e `original`. Cada versão tem `thumbnailUrl`, `optimizedUrl`, `fullSizeUrl` e `colorPalette[{red,green,blue,score,pixelFraction}]`. As dimensões ficam em `metadata.{fullSize,optimized,thumbnail}{Width,Height}`, uma vez só por documento, mesmo quando as versões são arquivos diferentes. A galeria mostra `images[0]` e cai para `original` quando não há versão editada.
 - **Acervo**: 784 fotos. O original tem por volta de 3000 px no lado maior e cerca de 1,1 MB. O otimizado tem 1/3 disso (≈1000 px, dezenas de KB), e a miniatura, 1/10. Quase sempre o otimizado é pequeno demais para TV e para celular em alta densidade, então o original é que vai ser servido na maioria das telas.
 - **`cdn.yanlucas.com`**: R2 com domínio próprio. Responde sem `Cache-Control` e com `cf-cache-status: DYNAMIC`, ou seja, a borda da Cloudflare hoje não guarda as fotos. O R2 não cobra saída de dados, mas cobra cada leitura que chega até ele.
-- **Servidor de casa**: uma stack Docker por pasta em `/opt/home-server/<stack>`, nginx com certificado `*.yanlucas.com` e SQLite já usado (Vaultwarden).
+- **Servidor**: uma stack Docker por pasta, nginx com certificado curinga e SQLite já usado em outra stack.
 - **Visual do DeckLock** (`yan-vidal/DeckLock`): `themes/default/style.css:14-37` (véu, `#clock` 96px/300, `#date` 22px, sombra, destaque `#7aa2f7`), `src/ui.rs:1224-1253` (formatos de hora e data), `src/ui/adaptive.rs:40-48` (escala pela referência 1280×800, só para baixo), `src/ui.rs:285-312` (crossfade de 600 ms). O modo repouso centraliza o bloco do relógio (`src/ui.rs:1965-1978`). A data sai com a primeira letra maiúscula (`src/ui.rs:1245`). Linhas conferidas em `origin/main` (58f54ec).
 
 ## Goals / Non-Goals
@@ -108,7 +108,7 @@ Vite só para o build e o servidor de desenvolvimento (com proxy de `/api`), sem
 
 ### D12. Implantação
 - Dockerfile multiestágio: Node compila `web/`, Rust compila o binário, e a imagem final é `debian:bookworm-slim` com `ca-certificates`, usuário sem privilégios e `/app/data` como volume.
-- Stack em `/opt/home-server/websites/decklive` (esquema dos sites) com porta `127.0.0.1:8084`, `server` no nginx para `decklive.yanlucas.com` e o certificado curinga que já existe.
+- Stack numa pasta própria do servidor, com a porta publicada só no loopback, um `server` no nginx para o subdomínio do DeckLive e o certificado curinga que já existe.
 - O `.env` com o token fica só no servidor.
 
 ## Risks / Trade-offs
@@ -120,14 +120,14 @@ Vite só para o build e o servidor de desenvolvimento (com proxy de `/api`), sem
 - [O relógio central cobre o centro da foto] → É a escolha de seguir o DeckLock em repouso. A posição vira opção quando chegarem os widgets.
 - [Navegadores de TV antigos] → Alvo `chrome53`, `lib` ES2016 no TypeScript, sem `min()` no CSS, detecção de `decode`, tela cheia e Wake Lock.
 - [No navegador da Samsung, as setas do controle podem mover um ponteiro em vez de chegar à página] → Os controles também respondem a movimento e clique do ponteiro (requisito "Controles discretos"). A tarefa 7.2 confere na TV qual dos dois modos o navegador usa.
-- [O servidor de casa cai] → O player continua com a playlist guardada, e as fotos vêm direto do R2.
+- [O servidor cai] → O player continua com a playlist guardada, e as fotos vêm direto do R2.
 
 ## Migration Plan
 
 Projeto novo, sem migração. Implantação:
 1. Construir a imagem.
 2. Subir a stack com o `.env`.
-3. Criar o `server` no nginx e o DNS de `decklive.yanlucas.com`.
+3. Criar o `server` no nginx e o DNS do subdomínio.
 4. Registrar as primeiras fotos com `curl`.
 5. Abrir numa TV e num celular.
 
@@ -135,4 +135,4 @@ Para voltar atrás: `docker compose down` e remover o bloco do nginx. Nada nos s
 
 ## Open Questions
 
-- A porta livre no servidor de casa e se o subdomínio vai passar pelo proxy da Cloudflare agora ou depois. Nenhuma das duas muda as specs nem as tarefas.
+- A porta livre no servidor e se o subdomínio vai passar pelo proxy da Cloudflare agora ou depois. Nenhuma das duas muda as specs nem as tarefas.

@@ -66,7 +66,7 @@ Ficam em `src/routes/translations.rs`, atrás do mesmo middleware de token.
 | `DELETE /api/translations/{lang}` | `{sources: [...]}` | `{removed, not_found}` |
 
 - **Lista `missing`:** `kind` é `description`, `city`, `state` ou `country`. A lista vem ordenada por `photos`, da maior para a menor, e é montada do catálogo em memória.
-- **Corpo:** limite de 2 MB na rota. A carga no servidor de casa é feita de dentro dele, direto em `127.0.0.1:8084`, sem passar pelo nginx, que limita o corpo a 1 MB.
+- **Corpo:** limite de 2 MB na rota. A carga no servidor é feita de dentro dele, direto na porta do container, sem passar pelo nginx, que limita o corpo a 1 MB.
 
 ### D5. Player
 - **Pedido da playlist:** `api.ts` passa a mandar `lang` com a etiqueta do navegador. O `_` vira `-`, e o `lang` só vai quando a etiqueta passa na mesma validação da API: com uma etiqueta como `en-US-u-ca-gregory`, a API responderia `400` e o player ficaria sem fotos. Quem canoniza é a API, e o `fetch` segue o `308` sozinho.
@@ -81,7 +81,7 @@ A tradução é feita uma vez, nesta mudança, por um subagente, com estas regra
 - nomes próprios e de lugar no uso brasileiro: `Japan` vira "Japão", `Tokyo` vira "Tóquio", e `São Paulo` fica igual;
 - textos que não mudam (por exemplo, `Osaka`) entram com o texto igual ao original. Assim, `missing=true` mostra só o que ainda falta traduzir.
 
-A revisão confere uma amostra à mão. A carga é feita com `PUT /api/translations/pt-BR`, na máquina local e no servidor de casa.
+A revisão confere uma amostra à mão. A carga é feita com `PUT /api/translations/pt-BR`, na máquina local e no servidor.
 
 ## Risks / Trade-offs
 
@@ -93,4 +93,4 @@ A revisão confere uma amostra à mão. A carga é feita com `PUT /api/translati
 
 1. A migração `0003_translation.sql` cria a tabela vazia, e nada muda para quem não manda `lang`.
 2. Antes do deploy, fazer uma cópia de `data/decklive.db` (como na mudança anterior, a imagem antiga não sobe com uma migração desconhecida).
-3. Depois do deploy, carregar `fixtures/translations/pt-BR.json` no servidor de casa com `PUT /api/translations/pt-BR`.
+3. Depois do deploy, carregar `fixtures/translations/pt-BR.json` no servidor com `PUT /api/translations/pt-BR`.

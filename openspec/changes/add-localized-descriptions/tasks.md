@@ -23,5 +23,5 @@
 
 ## Workflow follow-up
 
-- Implantar no servidor de casa (cópia de `data/`, `rsync`, `docker compose up -d --build`, `docker builder prune -af`) e carregar o `pt-BR.json` de dentro do servidor, direto em `127.0.0.1:8084`.
+- Implantar no servidor (cópia de `data/`, `rsync`, `docker compose up -d --build`, `docker builder prune -af`) e carregar o `pt-BR.json` de dentro do servidor, direto na porta do container.
 - Arquivar depois de `add-photo-info-and-motion`.

@@ -8,7 +8,7 @@ services:
     env_file: .env
     ports:
       # só no loopback: o nginx do host faz o HTTPS e repassa.
-      # DECKLIVE_PORT vem do .env (no servidor de casa a 8083 é do CrowdSec).
+      # DECKLIVE_PORT vem do .env (padrão 8083).
       - "127.0.0.1:${DECKLIVE_PORT:-8083}:8080"
     volumes:
       - ./data:/app/data

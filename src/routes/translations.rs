@@ -15,8 +15,8 @@ use crate::lang::{self, TagError};
 
 /// Itens por gravação, numa transação só.
 pub const MAX_ITEMS: usize = 2000;
-/// Corpo das rotas de tradução. A carga no servidor de casa vai direto ao loopback,
-/// sem o nginx (que limita o corpo a 1 MB).
+/// Corpo das rotas de tradução. Num servidor, a carga vai direto ao loopback,
+/// sem o proxy (o nginx do exemplo limita o corpo a 1 MB).
 pub const MAX_BODY: usize = 2 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]

@@ -35,4 +35,4 @@ O DeckLock vai buscar as mídias de idle e de fundo num servidor externo, e esse
 - Repositório novo (`yan-vidal/Decklive`): crate Rust na raiz e front em `web/`.
 - Dependências novas: Rust (axum, tokio, sqlx/SQLite, reqwest, serde, tower-http) e, no front, Vite e TypeScript, só para o build.
 - Depende da API pública `https://api.yanlucas.com/images` (somente leitura) e das URLs públicas de `cdn.yanlucas.com`. Nada muda nesses sistemas.
-- Implantação: um container no servidor de casa, publicado num subdomínio de yanlucas.com e com um token de administrador em variável de ambiente.
+- Implantação: um container num servidor, publicado num subdomínio próprio e com um token de administrador em variável de ambiente.

@@ -137,7 +137,7 @@ O painel ganha as três opções depois das que já existem, com rótulos em `i1
 - **[Textos em inglês num player em pt-BR]** → É o que a fonte tem. A tradução fica para uma mudança futura, que pode traduzir uma vez no registro.
 - **[Resumo de uma frase perde detalhes da descrição]** → É a escolha de mostrar pouco texto, como a tela de bloqueio do Windows. A descrição inteira continua gravada no catálogo.
 - **[Texto fixo no canto de TVs OLED]** → O texto muda a cada foto e o relógio já é fixo. Não há mitigação extra nesta mudança.
-- **[Fotos já registradas ficam sem local]** → Na máquina local, elas são registradas de novo com o mesmo enquadramento (tarefa 5.2). O servidor de casa ainda não tem catálogo.
+- **[Fotos já registradas ficam sem local]** → Na máquina local, elas são registradas de novo com o mesmo enquadramento (tarefa 5.2). O servidor ainda não tem catálogo.
 
 ## Migration Plan
 

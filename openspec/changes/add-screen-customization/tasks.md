@@ -30,6 +30,6 @@
 
 ## Workflow follow-up
 
-- Implantar no servidor de casa, junto com `add-localized-descriptions`.
+- Implantar no servidor, junto com `add-localized-descriptions`.
 - Testar o modo de edição e o recebimento de ajustes na TV Samsung com Tizen (junto com a tarefa 7.2 de `add-photo-player-mvp`).
 - Arquivar depois de `add-photo-info-and-motion`.

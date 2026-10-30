@@ -43,4 +43,4 @@ O layout fixo do DeckLock nem sempre combina com a TV ou com o lugar onde ela fi
 - **Segurança:**
   - o token do endpoint do usuário fica no `localStorage` daquele navegador, e passa pela memória da API por até 10 minutos durante um envio;
   - o HTML da área roda num `iframe` com `sandbox` sem scripts.
-- **Requisito para o endpoint do usuário:** liberar CORS para `https://decklive.yanlucas.com`, com o cabeçalho `Authorization`, e ser `https`.
+- **Requisito para o endpoint do usuário:** liberar CORS para o domínio onde o DeckLive está publicado, com o cabeçalho `Authorization`, e ser `https`.
